@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Your Certificate - {{ participant.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Back Button -->
+        <a href="{{ url_for('public.download_page', event_id=event.id) }}"
+            class="btn btn-link text-decoration-none mb-3 animate-in">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+
+        <!-- Certificate Header -->
+        <div class="glass-card p-4 mb-4 animate-in delay-1">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center gap-3">
+                        <div
+                            style="width: 60px; height: 60px; border-radius: 50%; background: var(--gradient-success); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+                            <i class="bi bi-check-lg"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1">Certificate Found!</h4>
+                            <p class="text-muted mb-0">
+                                <strong>{{ participant.name }}</strong> • {{ event.name }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
+                        class="btn btn-gradient-success btn-lg">
+                        <i class="bi bi-download"></i> Download PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- PDF Preview -->
+        <div class="glass-card animate-in delay-2" style="overflow: hidden;">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                style="background: var(--gradient-primary); color: white;">
+                <span><i class="bi bi-file-pdf"></i> Certificate Preview</span>
+                <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
+                    class="btn btn-light btn-sm">
+                    <i class="bi bi-download"></i> Download
+                </a>
+            </div>
+            <div style="height: 600px;">
+                <iframe src="{{ url_for('public.preview_certificate', participant_id=participant.id) }}"
+                    style="width: 100%; height: 100%; border: none;" title="Certificate Preview"></iframe>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="text-center mt-4 animate-in delay-3">
+            <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
+                class="btn btn-gradient-success btn-lg me-2">
+                <i class="bi bi-download"></i> Download Certificate
+            </a>
+            <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary btn-lg">
+                <i class="bi bi-house"></i> Back to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+instance/certificates.db
+uploads/*
+
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Upload Preview - Certificate Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <!-- Back Link -->
+        <a href="{{ url_for('admin.bulk_upload', event_id=event.id) }}"
+            class="btn btn-link text-decoration-none mb-3 animate-in">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+
+        <div class="glass-card p-4 animate-in delay-1">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">
+                    <i class="bi bi-eye text-gradient"></i> Review Import
+                </h4>
+                <span class="text-muted">Event: <strong>{{ event.name }}</strong></span>
+            </div>
+
+            <!-- Summary -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="p-3 rounded text-center" style="background: var(--bs-body-bg);">
+                        <h3 class="text-primary mb-0">{{ preview_data|length }}</h3>
+                        <small class="text-muted">Total Records</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card success text-center p-3">
+                        <h3 class="mb-0">{{ valid_count }}</h3>
+                        <small>Valid</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card secondary text-center p-3">
+                        <h3 class="mb-0">{{ invalid_count }}</h3>
+                        <small>Invalid</small>
+                    </div>
+                </div>
+            </div>
+
+            {% if invalid_count > 0 %}
+            <div class="alert alert-warning glass-alert">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Warning:</strong> {{ invalid_count }} record(s) have errors and will be skipped.
+            </div>
+            {% endif %}
+
+            <!-- Preview Table -->
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-sm table-bordered mb-0">
+                    <thead class="sticky-top" style="background: var(--glass-bg);">
+                        <tr>
+                            <th>Row</th>
+                            <th>Status</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Certificate</th>
+                            <th>Errors</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in preview_data %}
+                        <tr class="{{ 'table-danger' if not record.valid else '' }}">
+                            <td>{{ record.row }}</td>
+                            <td>
+                                {% if record.valid %}
+                                <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                                {% else %}
+                                <span class="badge bg-danger"><i class="bi bi-x"></i></span>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.name or '-' }}</td>
+                            <td><small>{{ record.email or '-' }}</small></td>
+                            <td><small>{{ record.certificate_filename or '-' }}</small></td>
+                            <td><small class="text-danger">{{ record.errors or '-' }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2 mt-4">
+                {% if valid_count > 0 %}
+                <form action="{{ url_for('admin.bulk_upload_confirm') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-gradient-success">
+                        <i class="bi bi-check-circle"></i> Import {{ valid_count }} Record(s)
+                    </button>
+                </form>
+                {% endif %}
+                <form action="{{ url_for('admin.bulk_upload_cancel') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

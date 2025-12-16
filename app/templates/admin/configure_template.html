@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Certificate Template - {{ event.name }}{% endblock %}
+
+{% block content %}
+<!-- Back Link -->
+<a href="{{ url_for('admin.event_detail', event_id=event.id) }}"
+    class="btn btn-link text-decoration-none mb-3 animate-in">
+    <i class="bi bi-arrow-left"></i> Back to Event
+</a>
+
+<div class="glass-card p-4 mb-4 animate-in delay-1">
+    <h4 class="fw-bold mb-3">
+        <i class="bi bi-file-earmark-pdf text-gradient"></i>
+        Configure Certificate Template
+    </h4>
+    <p class="text-muted mb-0">Event: <strong>{{ event.name }}</strong></p>
+</div>
+
+<div class="row g-4">
+    <!-- Upload Template Section -->
+    <div class="col-lg-4 animate-in delay-2">
+        <div class="glass-card p-4 h-100">
+            <h5 class="fw-semibold mb-3">
+                <i class="bi bi-upload text-primary"></i> Upload Template
+            </h5>
+
+            <form action="{{ url_for('admin.upload_template', event_id=event.id) }}" method="POST"
+                enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="template" class="form-label">PDF Template File</label>
+                    <input type="file" class="form-control" id="template" name="template" accept=".pdf" required>
+                    <div class="form-text">Upload a PDF certificate template. The name will be overlaid on this.</div>
+                </div>
+                <button type="submit" class="btn btn-gradient w-100">
+                    <i class="bi bi-cloud-upload"></i> Upload Template
+                </button>
+            </form>
+
+            {% if event.template_filename %}
+            <hr class="my-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i> Template uploaded
+                </small>
+                <form action="{{ url_for('admin.delete_template', event_id=event.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                        onclick="return confirm('Delete template?')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Template Preview & Position Section -->
+    <div class="col-lg-8 animate-in delay-3">
+        <div class="glass-card p-4">
+            <h5 class="fw-semibold mb-3">
+                <i class="bi bi-cursor text-primary"></i> Configure Name Position
+            </h5>
+
+            {% if event.template_filename %}
+            <p class="text-muted small mb-3">
+                Click on the template preview to set where the participant's name should appear.
+                The text will be centered at the clicked position.
+            </p>
+
+            <!-- Position Configuration Form -->
+            <form method="POST" action="{{ url_for('admin.configure_template', event_id=event.id) }}" id="positionForm">
+                <!-- Hidden inputs for position -->
+                <input type="hidden" name="name_x" id="name_x" value="{{ event.name_position_x or 50 }}">
+                <input type="hidden" name="name_y" id="name_y" value="{{ event.name_position_y or 50 }}">
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="font_name" class="form-label">Font Style</label>
+                        <select class="form-select" id="font_name" name="font_name">
+                            {% for key, name in fonts.items() %}
+                            <option value="{{ key }}" {% if event.font_name==key %}selected{% endif %}>{{ name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="font_size" class="form-label">Font Size</label>
+                        <input type="number" class="form-control" id="font_size" name="font_size"
+                            value="{{ event.font_size or 36 }}" min="8" max="200">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="font_color" class="form-label">Color</label>
+                        <input type="color" class="form-control form-control-color w-100" id="font_color"
+                            name="font_color" value="{{ event.font_color or '#000000' }}">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-gradient w-100">
+                            <i class="bi bi-check-lg"></i> Save
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Template Preview with Click-to-Position -->
+            <div class="position-relative border rounded overflow-hidden" style="background: #f0f0f0;">
+                <div id="templateContainer" style="position: relative; cursor: crosshair;">
+                    <img id="templateImage" src="{{ url_for('admin.template_preview', event_id=event.id) }}"
+                        alt="Certificate Template" style="max-width: 100%; display: block;" onload="initializeMarker()">
+
+                    <!-- Position Marker -->
+                    <div id="positionMarker" style="position: absolute; 
+                                transform: translate(-50%, -50%);
+                                pointer-events: none;
+                                font-weight: bold;
+                                text-align: center;
+                                white-space: nowrap;
+                                text-shadow: 1px 1px 2px rgba(255,255,255,0.8), -1px -1px 2px rgba(255,255,255,0.8);">
+                        Sample Name
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i>
+                    Position: <span id="positionDisplay">{{ event.name_position_x|round(1) if event.name_position_x else
+                        50 }}%, {{ event.name_position_y|round(1) if event.name_position_y else 50 }}%</span>
+                </small>
+            </div>
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-file-earmark-pdf display-4 text-muted"></i>
+                <h5 class="mt-3">No Template Uploaded</h5>
+                <p class="text-muted mb-0">Upload a PDF template first to configure the name position.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if event.template_filename %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const container = document.getElementById('templateContainer');
+        const image = document.getElementById('templateImage');
+        const marker = document.getElementById('positionMarker');
+        const nameXInput = document.getElementById('name_x');
+        const nameYInput = document.getElementById('name_y');
+        const fontSizeInput = document.getElementById('font_size');
+        const fontColorInput = document.getElementById('font_color');
+        const fontNameSelect = document.getElementById('font_name');
+        const positionDisplay = document.getElementById('positionDisplay');
+
+        // Font mapping from PyMuPDF codes to CSS font-family
+        const fontFamilyMap = {
+            'helv': 'Helvetica, Arial, sans-serif',
+            'hebo': 'Helvetica, Arial, sans-serif',
+            'tiro': 'Times, "Times New Roman", serif',
+            'tiit': 'Times, "Times New Roman", serif',
+            'tibo': 'Times, "Times New Roman", serif',
+            'cour': 'Courier, "Courier New", monospace',
+            'cobo': 'Courier, "Courier New", monospace',
+            'symb': 'Symbol, serif'
+        };
+
+        // Font weight mapping
+        const fontWeightMap = {
+            'helv': 'normal',
+            'hebo': 'bold',
+            'tiro': 'normal',
+            'tiit': 'normal',
+            'tibo': 'bold',
+            'cour': 'normal',
+            'cobo': 'bold',
+            'symb': 'normal'
+        };
+
+        // Font style mapping
+        const fontStyleMap = {
+            'helv': 'normal',
+            'hebo': 'normal',
+            'tiro': 'normal',
+            'tiit': 'italic',
+            'tibo': 'normal',
+            'cour': 'normal',
+            'cobo': 'normal',
+            'symb': 'normal'
+        };
+
+        function updateMarkerStyle() {
+            marker.style.fontSize = fontSizeInput.value + 'px';
+            marker.style.color = fontColorInput.value;
+
+            const selectedFont = fontNameSelect.value;
+            marker.style.fontFamily = fontFamilyMap[selectedFont] || 'Helvetica, Arial, sans-serif';
+            marker.style.fontWeight = fontWeightMap[selectedFont] || 'normal';
+            marker.style.fontStyle = fontStyleMap[selectedFont] || 'normal';
+        }
+
+        function initializeMarker() {
+            const xPercent = parseFloat(nameXInput.value);
+            const yPercent = parseFloat(nameYInput.value);
+
+            marker.style.left = xPercent + '%';
+            marker.style.top = yPercent + '%';
+            updateMarkerStyle();
+        }
+
+        // Make initializeMarker available globally
+        window.initializeMarker = initializeMarker;
+
+        container.addEventListener('click', function (e) {
+            const rect = image.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const xPercent = (x / image.offsetWidth) * 100;
+            const yPercent = (y / image.offsetHeight) * 100;
+
+            // Update hidden inputs
+            nameXInput.value = xPercent.toFixed(2);
+            nameYInput.value = yPercent.toFixed(2);
+
+            // Update marker position
+            marker.style.left = xPercent + '%';
+            marker.style.top = yPercent + '%';
+
+            // Update display
+            positionDisplay.textContent = xPercent.toFixed(1) + '%, ' + yPercent.toFixed(1) + '%';
+        });
+
+        fontSizeInput.addEventListener('input', updateMarkerStyle);
+        fontColorInput.addEventListener('input', updateMarkerStyle);
+        fontNameSelect.addEventListener('change', updateMarkerStyle);
+
+        // Initialize on load
+        if (image.complete) {
+            initializeMarker();
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

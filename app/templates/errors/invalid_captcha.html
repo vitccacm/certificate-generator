@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Invalid CAPTCHA - Certificate Portal{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+    <i class="bi bi-shield-x display-1 text-warning"></i>
+    <h1 class="display-4 mt-3">Invalid CAPTCHA</h1>
+    <p class="lead text-muted">
+        The CAPTCHA verification failed. Please try again.
+    </p>
+    <a href="{{ url_for('public.index') }}" class="btn btn-primary">
+        <i class="bi bi-arrow-left"></i> Go Back & Try Again
+    </a>
+</div>
+{% endblock %}

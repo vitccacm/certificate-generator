@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Settings - Certificate Portal{% endblock %}
+
+{% block content %}
+<!-- Back Link -->
+<a href="{{ url_for('admin.dashboard') }}" class="btn btn-link text-decoration-none mb-3 animate-in">
+    <i class="bi bi-arrow-left"></i> Back to Dashboard
+</a>
+
+<div class="row g-4">
+    <!-- Change Password -->
+    <div class="col-lg-6 animate-in delay-1">
+        <div class="glass-card p-4 h-100">
+            <h5 class="fw-semibold mb-4">
+                <i class="bi bi-key text-gradient"></i> Change Your Password
+            </h5>
+            <form method="POST" action="{{ url_for('admin.change_password') }}">
+                <div class="mb-3">
+                    <label for="current_password" class="form-label">Current Password</label>
+                    <input type="password" class="form-control" id="current_password" name="current_password" required>
+                </div>
+                <div class="mb-3">
+                    <label for="new_password" class="form-label">New Password</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password" required
+                        minlength="6">
+                    <div class="form-text">Minimum 6 characters</div>
+                </div>
+                <div class="mb-4">
+                    <label for="confirm_password" class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                </div>
+                <button type="submit" class="btn btn-gradient">
+                    <i class="bi bi-check-lg"></i> Update Password
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create New Admin -->
+    <div class="col-lg-6 animate-in delay-2">
+        <div class="glass-card p-4 h-100">
+            <h5 class="fw-semibold mb-4">
+                <i class="bi bi-person-plus text-gradient"></i> Create New Admin
+            </h5>
+            <form method="POST" action="{{ url_for('admin.new_admin') }}">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" required>
+                </div>
+                <div class="mb-3">
+                    <label for="new_admin_password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="new_admin_password" name="new_password" required
+                        minlength="6">
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_super_admin" name="is_super_admin">
+                        <label class="form-check-label" for="is_super_admin">
+                            Super Admin (can manage other admins)
+                        </label>
+                    </div>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <label for="admin_password" class="form-label">Your Password (to confirm)</label>
+                    <input type="password" class="form-control" id="admin_password" name="admin_password" required>
+                    <div class="form-text">Enter your password to authorize this action</div>
+                </div>
+                <button type="submit" class="btn btn-gradient">
+                    <i class="bi bi-person-plus"></i> Create Admin
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Accounts List -->
+<div class="glass-card p-4 mt-4 animate-in delay-3">
+    <h5 class="fw-semibold mb-4">
+        <i class="bi bi-people"></i> Admin Accounts
+    </h5>
+
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Type</th>
+                    <th>Created</th>
+                    <th>Last Login</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for admin in admins %}
+                <tr>
+                    <td>
+                        <strong>{{ admin.username }}</strong>
+                        {% if admin.id == session.get('admin_id') %}
+                        <span class="badge bg-primary">You</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if admin.is_super_admin %}
+                        <span class="badge bg-warning text-dark">Super Admin</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Admin</span>
+                        {% endif %}
+                    </td>
+                    <td><small class="text-muted">{{ admin.created_at.strftime('%b %d, %Y') }}</small></td>
+                    <td>
+                        {% if admin.last_login %}
+                        <small class="text-muted">{{ admin.last_login.strftime('%b %d, %Y %H:%M') }}</small>
+                        {% else %}
+                        <small class="text-muted">Never</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if admin.id != session.get('admin_id') %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#deleteAdminModal{{ admin.id }}">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+
+                        <!-- Delete Admin Modal -->
+                        <div class="modal fade" id="deleteAdminModal{{ admin.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Delete Admin Account</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="POST"
+                                        action="{{ url_for('admin.delete_admin', target_admin_id=admin.id) }}">
+                                        <div class="modal-body text-start">
+                                            <p>Are you sure you want to delete admin <strong>{{ admin.username
+                                                    }}</strong>?</p>
+                                            <div class="mt-3">
+                                                <label class="form-label">Your Password (to confirm)</label>
+                                                <input type="password" class="form-control" name="admin_password"
+                                                    required>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-danger">Delete Admin</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="glass-card p-4 mt-4 animate-in delay-4">
+    <h5 class="fw-semibold mb-3">
+        <i class="bi bi-journal-text"></i> Activity Logs
+    </h5>
+    <div class="d-flex gap-3">
+        <a href="{{ url_for('admin.view_logs') }}" class="btn btn-outline-primary">
+            <i class="bi bi-shield"></i> Admin Activity Logs
+        </a>
+        <a href="{{ url_for('admin.view_download_logs') }}" class="btn btn-outline-success">
+            <i class="bi bi-download"></i> Download Logs
+        </a>
+    </div>
+</div>
+{% endblock %}

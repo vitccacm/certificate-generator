@@ -1,0 +1,31 @@
+# Rewrite rules for cPanel/Apache
+# Ensures all requests are routed through the Flask app
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /passenger_wsgi.py/$1 [QSA,L]
+
+# Deny access to sensitive files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Deny access to Python files
+<FilesMatch "\.(py|pyc|pyo)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Deny access to SQLite database
+<FilesMatch "\.db$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow access to passenger_wsgi.py (needed for routing)
+<Files "passenger_wsgi.py">
+    Order allow,deny
+    Allow from all
+</Files>

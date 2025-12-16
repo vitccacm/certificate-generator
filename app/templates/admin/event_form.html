@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit Event' if event else 'New Event' }} - Certificate Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <!-- Back Link -->
+        <a href="{{ url_for('admin.event_detail', event_id=event.id) if event else url_for('admin.dashboard') }}"
+            class="btn btn-link text-decoration-none mb-3 animate-in">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+
+        <div class="glass-card p-4 animate-in delay-1">
+            <h4 class="fw-bold mb-4">
+                <i class="bi bi-{{ 'pencil' if event else 'plus-circle' }} text-gradient"></i>
+                {{ 'Edit Event' if event else 'Create New Event' }}
+            </h4>
+
+            <form method="POST"
+                action="{{ url_for('admin.edit_event', event_id=event.id) if event else url_for('admin.new_event') }}">
+
+                <!-- Event Name -->
+                <div class="mb-3">
+                    <label for="name" class="form-label">Event Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-lg" id="name" name="name"
+                        value="{{ event.name if event else '' }}" required placeholder="Enter event name">
+                </div>
+
+                <!-- Event Date -->
+                <div class="mb-3">
+                    <label for="event_date" class="form-label">Event Date</label>
+                    <input type="date" class="form-control form-control-lg" id="event_date" name="event_date"
+                        value="{{ event.event_date.strftime('%Y-%m-%d') if event and event.event_date else '' }}">
+                    <div class="form-text">Optional. The date when the event took place.</div>
+                </div>
+
+                <!-- Event Description -->
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3"
+                        placeholder="Optional event description">{{ event.description if event else '' }}</textarea>
+                </div>
+
+                <!-- Visibility Toggle -->
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_visible" name="is_visible" {{ 'checked'
+                            if not event or event.is_visible else '' }} style="width: 3em; height: 1.5em;">
+                        <label class="form-check-label ms-2" for="is_visible">
+                            Visible to participants
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        When enabled, this event will appear on the public page
+                    </small>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-gradient">
+                        <i class="bi bi-check-lg"></i>
+                        {{ 'Update Event' if event else 'Create Event' }}
+                    </button>
+                    <a href="{{ url_for('admin.event_detail', event_id=event.id) if event else url_for('admin.dashboard') }}"
+                        class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Invalid Email - Certificate Portal{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+    <i class="bi bi-envelope-x display-1 text-warning"></i>
+    <h1 class="display-4 mt-3">Invalid Email</h1>
+    <p class="lead text-muted">
+        The email address format is invalid. Please check and try again.
+    </p>
+    <a href="{{ url_for('public.index') }}" class="btn btn-primary">
+        <i class="bi bi-arrow-left"></i> Go Back & Try Again
+    </a>
+</div>
+{% endblock %}

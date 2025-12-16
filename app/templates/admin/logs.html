@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Admin Logs' if log_type == 'admin' else 'Download Logs' }} - Certificate Portal{% endblock %}
+
+{% block content %}
+<!-- Back Link -->
+<a href="{{ url_for('admin.settings') }}" class="btn btn-link text-decoration-none mb-3 animate-in">
+    <i class="bi bi-arrow-left"></i> Back to Settings
+</a>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4 animate-in delay-1">
+    <div>
+        <h2 class="fw-bold mb-1">
+            <span class="text-gradient">
+                {% if log_type == 'admin' %}Admin Activity Logs{% else %}Download Logs{% endif %}
+            </span>
+        </h2>
+        <p class="text-muted mb-0">
+            {% if log_type == 'admin' %}
+            Track all admin actions and login attempts
+            {% else %}
+            Track certificate downloads by users
+            {% endif %}
+        </p>
+    </div>
+    <div class="btn-group">
+        <a href="{{ url_for('admin.view_logs') }}"
+            class="btn btn-{{ 'primary' if log_type == 'admin' else 'outline-primary' }}">
+            <i class="bi bi-shield"></i> Admin Logs
+        </a>
+        <a href="{{ url_for('admin.view_download_logs') }}"
+            class="btn btn-{{ 'success' if log_type == 'downloads' else 'outline-success' }}">
+            <i class="bi bi-download"></i> Downloads
+        </a>
+    </div>
+</div>
+
+<div class="glass-card animate-in delay-2">
+    {% if log_type == 'admin' %}
+    <!-- Admin Logs Table -->
+    {% if logs.items %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Admin</th>
+                    <th>Action</th>
+                    <th>Details</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs.items %}
+                <tr>
+                    <td>
+                        <small class="text-muted">
+                            {{ log.created_at.strftime('%b %d, %Y') }}<br>
+                            {{ log.created_at.strftime('%H:%M:%S') }}
+                        </small>
+                    </td>
+                    <td>
+                        {% if log.admin %}
+                        <strong>{{ log.admin.username }}</strong>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set action_colors = {
+                        'login': 'success',
+                        'logout': 'secondary',
+                        'login_failed': 'danger',
+                        'create_event': 'primary',
+                        'edit_event': 'info',
+                        'delete_event': 'danger',
+                        'add_participant': 'success',
+                        'edit_participant': 'info',
+                        'delete_participant': 'danger',
+                        'bulk_upload': 'primary',
+                        'upload_pdfs': 'info',
+                        'create_admin': 'warning',
+                        'delete_admin': 'danger',
+                        'change_password': 'warning'
+                        } %}
+                        <span class="badge bg-{{ action_colors.get(log.action, 'secondary') }}">
+                            {{ log.action.replace('_', ' ').title() }}
+                        </span>
+                    </td>
+                    <td>
+                        <small>{{ log.details or '-' }}</small>
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ log.ip_address or '-' }}</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-5 text-center">
+        <i class="bi bi-journal-x display-4 text-muted"></i>
+        <h5 class="mt-3">No Logs Yet</h5>
+        <p class="text-muted mb-0">Admin activity will appear here.</p>
+    </div>
+    {% endif %}
+    {% else %}
+    <!-- Download Logs Table -->
+    {% if logs.items %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Participant</th>
+                    <th>Email</th>
+                    <th>Event</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs.items %}
+                <tr>
+                    <td>
+                        <small class="text-muted">
+                            {{ log.downloaded_at.strftime('%b %d, %Y') }}<br>
+                            {{ log.downloaded_at.strftime('%H:%M:%S') }}
+                        </small>
+                    </td>
+                    <td><strong>{{ log.participant.name }}</strong></td>
+                    <td>
+                        <small>{{ log.participant.email }}</small>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.event_detail', event_id=log.participant.event_id) }}"
+                            class="text-decoration-none">
+                            {{ log.participant.event.name }}
+                        </a>
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ log.ip_address or '-' }}</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-5 text-center">
+        <i class="bi bi-download display-4 text-muted"></i>
+        <h5 class="mt-3">No Downloads Yet</h5>
+        <p class="text-muted mb-0">Certificate downloads will appear here.</p>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if logs.pages > 1 %}
+    <div class="p-3 border-top">
+        <nav aria-label="Log pages">
+            <ul class="pagination pagination-sm mb-0 justify-content-center">
+                {% if logs.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ logs.prev_num }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in logs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {{ 'active' if page_num == logs.page else '' }}">
+                    <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+                {% endfor %}
+
+                {% if logs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ logs.next_num }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        <div class="text-center mt-2">
+            <small class="text-muted">
+                Showing {{ logs.items|length }} of {{ logs.total }} records
+            </small>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

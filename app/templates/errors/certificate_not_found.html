@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Not Found - Certificate Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="text-center py-5 animate-in">
+            <div
+                style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #ffa726 0%, #fb8c00 100%); display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-file-earmark-x"></i>
+            </div>
+            <h2 class="fw-bold mb-3">Certificate Not Found</h2>
+            <p class="text-muted mb-4">
+                We couldn't find a certificate for <strong>{{ email }}</strong>
+                in the event <strong>{{ event.name }}</strong>.
+            </p>
+        </div>
+
+        <div class="glass-card p-4 animate-in delay-1">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-info-circle text-gradient"></i> Possible reasons:</h6>
+            <ul class="mb-4">
+                <li>The email address might be different from what was registered</li>
+                <li>The certificate hasn't been uploaded yet</li>
+                <li>You may have selected the wrong event</li>
+            </ul>
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('public.download_page', event_id=event.id) }}" class="btn btn-gradient">
+                    <i class="bi bi-arrow-left"></i> Try Again
+                </a>
+                <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house"></i> Back to Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

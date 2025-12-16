@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Download Portal{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section animate-in">
+    <h1>
+        <span class="text-gradient">Download Your</span> Certificate
+    </h1>
+    <p class="subtitle">
+        Select your event below to access and download your participation certificate securely
+    </p>
+</section>
+
+<!-- Events Section -->
+<section class="events-section">
+    <div class="section-header animate-in delay-1">
+        <h2><i class="bi bi-calendar-event"></i> Available Events</h2>
+        <div class="line"></div>
+    </div>
+
+    {% if events %}
+    <div class="row g-4">
+        {% for event in events %}
+        <div class="col-md-6 col-lg-4 animate-in delay-{{ loop.index % 4 + 1 }}">
+            <a href="{{ url_for('public.download_page', event_id=event.id) }}" class="text-decoration-none">
+                <div class="event-card">
+                    <div class="event-icon">
+                        <i class="bi bi-trophy"></i>
+                    </div>
+                    <div class="event-date">
+                        <i class="bi bi-calendar3"></i>
+                        {% if event.event_date %}
+                        {{ event.event_date.strftime('%B %d, %Y') }}
+                        {% else %}
+                        {{ event.created_at.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </div>
+                    <h5 class="mt-2">{{ event.name }}</h5>
+                    {% if event.description %}
+                    <p class="event-description">
+                        {{ event.description[:100] }}{% if event.description|length > 100 %}...{% endif %}
+                    </p>
+                    {% else %}
+                    <p class="event-description text-muted">
+                        Click to download your certificate
+                    </p>
+                    {% endif %}
+                    <div class="arrow-icon">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="glass-card text-center py-5 animate-in delay-2">
+        <i class="bi bi-calendar-x display-4 text-muted"></i>
+        <h4 class="mt-3">No Events Available</h4>
+        <p class="text-muted">There are no events available for certificate download at the moment.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

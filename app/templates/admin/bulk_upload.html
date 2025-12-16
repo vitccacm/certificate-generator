@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Upload - {{ event.name }} - Certificate Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Back Link -->
+        <a href="{{ url_for('admin.event_detail', event_id=event.id) }}"
+            class="btn btn-link text-decoration-none mb-3 animate-in">
+            <i class="bi bi-arrow-left"></i> Back to {{ event.name }}
+        </a>
+
+        <div class="glass-card p-4 animate-in delay-1">
+            <h4 class="fw-bold mb-4">
+                <i class="bi bi-upload text-gradient"></i> Bulk Upload Participants
+            </h4>
+
+            <!-- Event Info -->
+            <div class="mb-4 p-3 rounded" style="background: var(--bs-body-bg);">
+                <small class="text-muted">Event</small>
+                <div class="fw-semibold">{{ event.name }}</div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="alert alert-info glass-alert mb-4">
+                <h6 class="fw-semibold"><i class="bi bi-info-circle"></i> Instructions</h6>
+                <ol class="mb-0 small">
+                    <li>First, upload all PDF certificates using the "Upload PDFs" option on the event page</li>
+                    <li>Prepare a CSV or Excel file with columns: <code>name</code>, <code>email</code>,
+                        <code>certificate_filename</code></li>
+                    <li>The <code>certificate_filename</code> must match the uploaded PDF filenames exactly</li>
+                    <li>Upload your file below and review the preview before importing</li>
+                </ol>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data"
+                action="{{ url_for('admin.bulk_upload', event_id=event.id) }}">
+                <!-- File Upload -->
+                <div class="mb-4">
+                    <label for="file" class="form-label">CSV or Excel File <span class="text-danger">*</span></label>
+                    <input type="file" class="form-control form-control-lg" id="file" name="file"
+                        accept=".csv,.xlsx,.xls" required>
+                    <div class="form-text">Accepted formats: .csv, .xlsx, .xls</div>
+                </div>
+
+                <!-- Submit -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-gradient">
+                        <i class="bi bi-upload"></i> Upload & Preview
+                    </button>
+                    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </a>
+                </div>
+            </form>
+
+            <!-- Sample Format -->
+            <hr class="my-4">
+            <h6 class="fw-semibold"><i class="bi bi-file-earmark-text"></i> Sample File Format</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead>
+                        <tr>
+                            <th>name</th>
+                            <th>email</th>
+                            <th>certificate_filename</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>John Doe</td>
+                            <td>john.doe@example.com</td>
+                            <td>john_doe_certificate.pdf</td>
+                        </tr>
+                        <tr>
+                            <td>Jane Smith</td>
+                            <td>jane.smith@example.com</td>
+                            <td>jane_smith_certificate.pdf</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
