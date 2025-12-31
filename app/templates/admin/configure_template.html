@@ -83,28 +83,18 @@
                 <input type="hidden" name="name_y" id="name_y" value="{{ event.name_position_y or 50 }}">
 
                 <div class="row mb-3">
-                    <div class="col-md-4">
-                        <label for="font_name" class="form-label">Font Style</label>
-                        <select class="form-select" id="font_name" name="font_name">
-                            {% for key, name in fonts.items() %}
-                            <option value="{{ key }}" {% if event.font_name==key %}selected{% endif %}>{{ name }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Font is fixed to <strong>Times New Roman (70px)</strong>.
+                            Position can still be adjusted.
+                        </div>
+                        <input type="hidden" name="font_name" value="times">
+                        <input type="hidden" name="font_size" id="font_size" value="70">
+                        <input type="hidden" name="font_color" id="font_color" value="#000000">
                     </div>
-                    <div class="col-md-3">
-                        <label for="font_size" class="form-label">Font Size</label>
-                        <input type="number" class="form-control" id="font_size" name="font_size"
-                            value="{{ event.font_size or 36 }}" min="8" max="200">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="font_color" class="form-label">Color</label>
-                        <input type="color" class="form-control form-control-color w-100" id="font_color"
-                            name="font_color" value="{{ event.font_color or '#000000' }}">
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
+                    <div class="col-md-12">
                         <button type="submit" class="btn btn-gradient w-100">
-                            <i class="bi bi-check-lg"></i> Save
+                            <i class="bi bi-check-lg"></i> Save Position
                         </button>
                     </div>
                 </div>
@@ -163,79 +153,72 @@
         const marker = document.getElementById('positionMarker');
         const nameXInput = document.getElementById('name_x');
         const nameYInput = document.getElementById('name_y');
-        const fontSizeInput = document.getElementById('font_size');
-        const fontColorInput = document.getElementById('font_color');
-        const fontNameSelect = document.getElementById('font_name');
+        // Inputs removed/hidden, using fixed values
         const positionDisplay = document.getElementById('positionDisplay');
+        const templateImage = document.getElementById('templateImage');
 
-        // Font mapping - matches certificate_generator.py AVAILABLE_FONTS
-        const fontFamilyMap = {
-            'arial': 'Arial, Helvetica, sans-serif',
-            'arial_bold': 'Arial, Helvetica, sans-serif',
-            'times': 'Times, "Times New Roman", serif',
-            'times_bold': 'Times, "Times New Roman", serif',
-            'georgia': 'Georgia, serif',
-            'verdana': 'Verdana, Geneva, sans-serif',
-            'tahoma': 'Tahoma, Geneva, sans-serif',
-            'courier': 'Courier, "Courier New", monospace',
-            'trebuchet': '"Trebuchet MS", Helvetica, sans-serif',
-            'palatino': '"Palatino Linotype", "Book Antiqua", Palatino, serif',
-            'garamond': 'Garamond, "Times New Roman", serif',
-            'bookman': '"Bookman Old Style", serif',
-            'century': '"Century Gothic", CenturyGothic, AppleGothic, sans-serif',
-            'lucida': '"Lucida Console", Monaco, monospace',
-        };
+        // Template dimensions from backend
+        const originalWidth = {{ template_width|default (0)
+    }};
 
-        const fontWeightMap = {
-            'arial_bold': 'bold',
-            'times_bold': 'bold',
-        };
-
-        function updateMarkerStyle() {
-            marker.style.fontSize = fontSizeInput.value + 'px';
-            marker.style.color = fontColorInput.value;
-
-            const selectedFont = fontNameSelect.value;
-            marker.style.fontFamily = fontFamilyMap[selectedFont] || 'Arial, sans-serif';
-            marker.style.fontWeight = fontWeightMap[selectedFont] || 'normal';
+    function updateMarkerStyle() {
+        // Calculate scale factor
+        let scale = 1;
+        if (originalWidth > 0 && templateImage.offsetWidth > 0) {
+            scale = templateImage.offsetWidth / originalWidth;
         }
 
-        function initializeMarker() {
-            const xPercent = parseFloat(nameXInput.value);
-            const yPercent = parseFloat(nameYInput.value);
+        // Apply scale to fixed font size (70px)
+        const realFontSize = 70;
+        const visualFontSize = realFontSize * scale;
 
-            marker.style.left = xPercent + '%';
-            marker.style.top = yPercent + '%';
+        marker.style.fontSize = visualFontSize + 'px';
+        marker.style.color = '#000000';
+        marker.style.fontFamily = 'Times, "Times New Roman", serif';
+        marker.style.fontWeight = 'normal';
+    }
+
+    function initializeMarker() {
+        const xPercent = parseFloat(nameXInput.value);
+        const yPercent = parseFloat(nameYInput.value);
+
+        marker.style.left = xPercent + '%';
+        marker.style.top = yPercent + '%';
+
+        // Wait for image to load to get dimensions for scaling
+        if (templateImage.complete) {
             updateMarkerStyle();
+        } else {
+            templateImage.onload = updateMarkerStyle;
         }
+    }
 
-        // Click on the overlay to set position
-        clickOverlay.addEventListener('click', function (e) {
-            const rect = clickOverlay.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+    // Update on window resize as image width changes
+    window.addEventListener('resize', updateMarkerStyle);
 
-            const xPercent = (x / clickOverlay.offsetWidth) * 100;
-            const yPercent = (y / clickOverlay.offsetHeight) * 100;
+    // Click on the overlay to set position
+    clickOverlay.addEventListener('click', function (e) {
+        const rect = clickOverlay.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-            // Update hidden inputs
-            nameXInput.value = xPercent.toFixed(2);
-            nameYInput.value = yPercent.toFixed(2);
+        const xPercent = (x / clickOverlay.offsetWidth) * 100;
+        const yPercent = (y / clickOverlay.offsetHeight) * 100;
 
-            // Update marker position
-            marker.style.left = xPercent + '%';
-            marker.style.top = yPercent + '%';
+        // Update hidden inputs
+        nameXInput.value = xPercent.toFixed(2);
+        nameYInput.value = yPercent.toFixed(2);
 
-            // Update display
-            positionDisplay.textContent = xPercent.toFixed(1) + '%, ' + yPercent.toFixed(1) + '%';
-        });
+        // Update marker position
+        marker.style.left = xPercent + '%';
+        marker.style.top = yPercent + '%';
 
-        fontSizeInput.addEventListener('input', updateMarkerStyle);
-        fontColorInput.addEventListener('input', updateMarkerStyle);
-        fontNameSelect.addEventListener('change', updateMarkerStyle);
+        // Update display
+        positionDisplay.textContent = xPercent.toFixed(1) + '%, ' + yPercent.toFixed(1) + '%';
+    });
 
-        // Initialize marker position on load
-        initializeMarker();
+    // Initialize marker position on load
+    initializeMarker();
     });
 </script>
 {% endif %}

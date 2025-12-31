@@ -87,7 +87,11 @@ def hex_to_rgb(hex_color):
 
 
 def generate_certificate_png(template_path, participant_name, x_percent, y_percent, 
-                             font_size=36, font_color='#000000', font_name='arial'):
+                             font_size=70, font_color='#000000', font_name='times'):
+    # Force Hardcoded values as requested to fix persistent issues
+    font_size = 70
+    font_name = 'times'
+
     if not PIL_AVAILABLE: return None
     
     try:
