@@ -84,7 +84,7 @@
         const renderer = new CertificateRenderer('certificateCanvas');
         const participantId = {{ participant.id }
     };
-    const participantName = "{{ participant.name | replace('"', '\\"') }}";
+    const participantName = "{{ participant.name }}";
 
     const loadingSpinner = document.getElementById('loadingSpinner');
     const canvas = document.getElementById('certificateCanvas');
@@ -92,7 +92,6 @@
 
     try {
         const success = await renderer.load(participantId);
-
         if (success) {
             loadingSpinner.style.display = 'none';
             canvas.style.display = 'block';
@@ -105,17 +104,14 @@
         errorMessage.style.display = 'block';
     }
 
-    // Download button handlers
     const downloadFilename = participantName.replace(/[^a-zA-Z0-9]/g, '_') + '_certificate.png';
 
     document.getElementById('downloadBtn').addEventListener('click', function () {
         renderer.download(downloadFilename);
     });
-
     document.getElementById('downloadBtnSmall').addEventListener('click', function () {
         renderer.download(downloadFilename);
     });
-
     document.getElementById('downloadBtnLarge').addEventListener('click', function () {
         renderer.download(downloadFilename);
     });
