@@ -801,10 +801,19 @@ def configure_template(event_id):
     GET: Show template configuration page with upload and positioning.
     POST: Save name position and font settings.
     """
-    from app.utils.certificate_generator import get_available_fonts
+    from app.utils.certificate_generator import get_available_fonts, get_template_dimensions
     
     event = Event.query.get_or_404(event_id)
     available_fonts = get_available_fonts()
+    
+    # Get template dimensions for correct font scaling in UI
+    template_width = 0
+    template_height = 0
+    if event.template_filename:
+        template_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'templates', event.template_filename)
+        dims = get_template_dimensions(template_path)
+        if dims:
+            template_width, template_height = dims
     
     if request.method == 'POST':
         # Get position data from form
@@ -849,7 +858,8 @@ def configure_template(event_id):
         flash('Template configuration saved successfully!', 'success')
         return redirect(url_for('admin.event_detail', event_id=event_id))
     
-    return render_template('admin/configure_template.html', event=event, fonts=available_fonts)
+    return render_template('admin/configure_template.html', event=event, fonts=available_fonts,
+                          template_width=template_width, template_height=template_height)
 
 
 @admin_bp.route('/events/<int:event_id>/upload-template', methods=['POST'])
