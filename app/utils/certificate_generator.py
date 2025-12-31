@@ -32,6 +32,11 @@ AVAILABLE_FONTS = {
     'courier': ('Courier New', ['DejaVuSansMono.ttf', 'cour.ttf', 'Courier New.ttf']),
 }
 
+def get_available_fonts():
+    """Return dictionary of available fonts for configuration UI"""
+    return AVAILABLE_FONTS
+
+
 def get_font(font_name, font_size):
     """
     Get ImageFont object. Prioritizes bundled fonts.
