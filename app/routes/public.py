@@ -181,10 +181,14 @@ def preview_certificate(participant_id):
         logging.info(f"Certificate generated successfully, size: {len(cert_bytes)} bytes")
         
         # Use Response instead of send_file for Passenger WSGI compatibility
-        return Response(
+        response = Response(
             cert_bytes,
             mimetype='image/png'
         )
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
     else:
         # Custom certificate - serve from file
         if not participant.certificate_filename:
@@ -265,6 +269,9 @@ def download_certificate(participant_id):
             mimetype='image/png'
         )
         response.headers['Content-Disposition'] = f'attachment; filename="{download_filename}"'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
         return response
     else:
         # Traditional: serve pre-uploaded certificate file
