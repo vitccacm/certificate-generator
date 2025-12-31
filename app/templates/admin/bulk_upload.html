@@ -32,11 +32,8 @@
             <div class="alert alert-info mb-4">
                 <h6 class="fw-semibold"><i class="bi bi-info-circle"></i> Instructions</h6>
                 <ol class="mb-0 small">
-                    <li>First, upload all PNG certificates using the "Upload Images" option on the event page</li>
-                    <li>Prepare a CSV or Excel file with columns: <code>name</code>, <code>email</code>,
-                        <code>certificate_filename</code>
-                    </li>
-                    <li>The <code>certificate_filename</code> must match the uploaded PNG filenames exactly</li>
+                    <li>Prepare a CSV or Excel file with columns: <code>name</code> and <code>email</code></li>
+                    <li>Certificates will be generated automatically using the event's template</li>
                     <li>Upload your file below and review the preview before importing</li>
                 </ol>
             </div>
@@ -71,19 +68,16 @@
                         <tr>
                             <th>name</th>
                             <th>email</th>
-                            <th>certificate_filename</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td>John Doe</td>
                             <td>john.doe@example.com</td>
-                            <td>john_doe_certificate.png</td>
                         </tr>
                         <tr>
                             <td>Jane Smith</td>
                             <td>jane.smith@example.com</td>
-                            <td>jane_smith_certificate.png</td>
                         </tr>
                     </tbody>
                 </table>

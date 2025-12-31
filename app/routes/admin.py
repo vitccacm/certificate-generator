@@ -696,8 +696,8 @@ def bulk_upload(event_id):
                     'errors': ', '.join(errors) if errors else None
                 })
             
-            # Store in session for confirmation
-            session['bulk_upload_data'] = preview_data
+            # Store only minimal data in session (file path and event_id, NOT the preview data)
+            # This avoids Flask's 4KB session cookie limit
             session['bulk_upload_event_id'] = event_id
             session['bulk_upload_file'] = upload_path
             
@@ -721,53 +721,92 @@ def bulk_upload(event_id):
 def bulk_upload_confirm():
     """
     Confirm and process bulk upload.
+    Re-parses the file to avoid session size limits.
     """
-    preview_data = session.get('bulk_upload_data', [])
     event_id = session.get('bulk_upload_event_id')
     upload_path = session.get('bulk_upload_file')
     
-    if not preview_data or not event_id:
+    if not event_id or not upload_path:
         flash('No upload data found. Please try again.', 'error')
         return redirect(url_for('admin.dashboard'))
     
-    event = Event.query.get(event_id)
+    if not os.path.exists(upload_path):
+        flash('Upload file not found. Please try again.', 'error')
+        session.pop('bulk_upload_event_id', None)
+        session.pop('bulk_upload_file', None)
+        return redirect(url_for('admin.dashboard'))
     
-    # Import valid records only
-    imported_count = 0
-    for record in preview_data:
-        if record['valid']:
-            # For template-based events, certificate_filename should be None
-            cert_filename = record['certificate_filename']
-            if cert_filename == '(Template)':
-                cert_filename = None
+    event = Event.query.get(event_id)
+    if not event:
+        flash('Event not found.', 'error')
+        if os.path.exists(upload_path):
+            os.remove(upload_path)
+        session.pop('bulk_upload_event_id', None)
+        session.pop('bulk_upload_file', None)
+        return redirect(url_for('admin.dashboard'))
+    
+    try:
+        # Re-parse the file
+        filename = os.path.basename(upload_path)
+        if filename.endswith('.csv'):
+            df = pd.read_csv(upload_path)
+        else:
+            df = pd.read_excel(upload_path)
+        
+        # Import valid records only
+        imported_count = 0
+        skipped_count = 0
+        
+        for idx, row in df.iterrows():
+            name = str(row['name']).strip() if pd.notna(row['name']) else ''
+            email = str(row['email']).strip().lower() if pd.notna(row['email']) else ''
+            
+            # Skip invalid rows
+            if not name or not email or not validate_email(email):
+                skipped_count += 1
+                continue
+            
+            # Check for duplicate
+            existing = Participant.query.filter_by(event_id=event_id, email=email).first()
+            if existing:
+                skipped_count += 1
+                continue
             
             participant = Participant(
                 event_id=event_id,
-                name=record['name'],
-                email=record['email'],
-                certificate_filename=cert_filename
+                name=name,
+                email=email,
+                certificate_filename=None  # Uses template
             )
             db.session.add(participant)
             imported_count += 1
-    
-    log_admin_action(
-        admin_id=session.get('admin_id'),
-        action='bulk_upload',
-        details=f'Bulk imported {imported_count} participants to event: {event.name if event else event_id}',
-        ip_address=request.remote_addr
-    )
-    db.session.commit()
-    
-    # Cleanup
-    if upload_path and os.path.exists(upload_path):
-        os.remove(upload_path)
-    
-    session.pop('bulk_upload_data', None)
-    session.pop('bulk_upload_event_id', None)
-    session.pop('bulk_upload_file', None)
-    
-    flash(f'Successfully imported {imported_count} participants.', 'success')
-    return redirect(url_for('admin.event_detail', event_id=event_id))
+        
+        log_admin_action(
+            admin_id=session.get('admin_id'),
+            action='bulk_upload',
+            details=f'Bulk imported {imported_count} participants to event: {event.name} (skipped {skipped_count})',
+            ip_address=request.remote_addr
+        )
+        db.session.commit()
+        
+        # Cleanup
+        if os.path.exists(upload_path):
+            os.remove(upload_path)
+        
+        session.pop('bulk_upload_event_id', None)
+        session.pop('bulk_upload_file', None)
+        
+        flash(f'Successfully imported {imported_count} participants. Skipped {skipped_count} invalid/duplicate entries.', 'success')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        if os.path.exists(upload_path):
+            os.remove(upload_path)
+        session.pop('bulk_upload_event_id', None)
+        session.pop('bulk_upload_file', None)
+        flash(f'Error processing upload: {str(e)}', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
 
 
 @admin_bp.route('/bulk-upload/cancel', methods=['POST'])
@@ -782,7 +821,6 @@ def bulk_upload_cancel():
     if upload_path and os.path.exists(upload_path):
         os.remove(upload_path)
     
-    session.pop('bulk_upload_data', None)
     session.pop('bulk_upload_event_id', None)
     session.pop('bulk_upload_file', None)
     

@@ -64,7 +64,6 @@
                     <th>Status</th>
                     <th>Name</th>
                     <th>Email</th>
-                    <th>Certificate</th>
                     <th>Errors</th>
                 </tr>
             </thead>
@@ -81,7 +80,6 @@
                     </td>
                     <td>{{ record.name or '-' }}</td>
                     <td><small>{{ record.email or '-' }}</small></td>
-                    <td><small>{{ record.certificate_filename or '-' }}</small></td>
                     <td><small class="text-danger">{{ record.errors or '-' }}</small></td>
                 </tr>
                 {% endfor %}
