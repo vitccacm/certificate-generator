@@ -73,8 +73,19 @@ def get_font(font_name, font_size):
                     return ImageFont.truetype(path, font_size)
                 except:
                     continue
-                    
-    logging.warning(f"No suitable font found for {font_name}. Using default.")
+    # 3. Try Generic Fallbacks (The "It works on my machine" list)
+    generic_fallbacks = ['DejaVuSans.ttf', 'arial.ttf', 'LiberationSans-Regular.ttf']
+    for fb_font in generic_fallbacks:
+         try:
+            # Try bare filename so Pillow searches system paths
+            font = ImageFont.truetype(fb_font, font_size)
+            logging.info(f"SUCCESS: Loaded generic fallback: {fb_font}")
+            return font
+         except Exception:
+            continue
+
+    # 4. Last Resort: Default
+    logging.error("FATAL: Could not load ANY font. Using tiny default bitmap.")
     return ImageFont.load_default()
 
 
