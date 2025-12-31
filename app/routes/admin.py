@@ -355,13 +355,14 @@ def delete_event(event_id):
     
     # Delete associated certificate files
     for participant in event.participants:
-        cert_path = os.path.join(current_app.config['CERTIFICATES_FOLDER'], 
-                                 participant.certificate_filename)
-        if os.path.exists(cert_path):
-            try:
-                os.remove(cert_path)
-            except OSError:
-                pass  # Continue even if file deletion fails
+        if participant.certificate_filename:
+            cert_path = os.path.join(current_app.config['CERTIFICATES_FOLDER'], 
+                                     participant.certificate_filename)
+            if os.path.exists(cert_path):
+                try:
+                    os.remove(cert_path)
+                except OSError:
+                    pass  # Continue even if file deletion fails
     
     db.session.delete(event)
     
