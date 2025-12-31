@@ -37,8 +37,15 @@ AVAILABLE_FONTS = {
     'lucida': ('Lucida Console', ['lucon.ttf', 'Lucida Console.ttf', 'DejaVuSansMono.ttf']),
 }
 
-# Font search directories
+# Get the path to bundled fonts (app/static/fonts/)
+_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_STATIC_FONTS_DIR = os.path.join(os.path.dirname(os.path.dirname(_CURRENT_DIR)), 'static', 'fonts')
+
+# Font search directories - bundled fonts first for cPanel compatibility
 FONT_DIRS = [
+    # Bundled fonts (most reliable for cPanel/shared hosting)
+    _STATIC_FONTS_DIR,
+    os.path.join(os.path.dirname(_CURRENT_DIR), 'static', 'fonts'),
     # Linux
     '/usr/share/fonts/truetype/dejavu/',
     '/usr/share/fonts/truetype/liberation/',

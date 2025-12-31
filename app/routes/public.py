@@ -293,6 +293,98 @@ def download_certificate(participant_id):
         )
 
 
+# ==================== API ENDPOINTS ====================
+
+@public_bp.route('/api/certificate-data/<int:participant_id>')
+def get_certificate_data(participant_id):
+    """
+    API endpoint that returns certificate rendering data as JSON.
+    Used for client-side canvas rendering.
+    """
+    from flask import jsonify
+    
+    participant = Participant.query.get_or_404(participant_id)
+    event = participant.event
+    
+    # Verify event is visible
+    if not event.is_visible:
+        return jsonify({'error': 'Event not available'}), 404
+    
+    # Font mapping for CSS
+    font_map = {
+        'arial': 'Arial, sans-serif',
+        'arial_bold': 'Arial, sans-serif',
+        'times': '"Times New Roman", serif',
+        'times_bold': '"Times New Roman", serif',
+        'georgia': 'Georgia, serif',
+        'verdana': 'Verdana, sans-serif',
+        'tahoma': 'Tahoma, sans-serif',
+        'courier': '"Courier New", monospace',
+        'trebuchet': '"Trebuchet MS", sans-serif',
+        'palatino': '"Palatino Linotype", serif',
+        'garamond': 'Garamond, serif',
+        'bookman': '"Bookman Old Style", serif',
+        'century': '"Century Gothic", sans-serif',
+        'lucida': '"Lucida Console", monospace',
+    }
+    
+    # Check if custom certificate or template-based
+    if participant.certificate_filename:
+        # Custom certificate - serve via route
+        cert_url = url_for('public.serve_certificate_file', filename=participant.certificate_filename)
+        return jsonify({
+            'type': 'custom',
+            'certificate_url': cert_url,
+            'name': participant.name
+        })
+    elif event.has_template:
+        # Template-based - return data for client rendering
+        template_url = url_for('public.serve_template', event_id=event.id)
+        font_name = event.font_name or 'arial'
+        font_weight = 'bold' if font_name.endswith('_bold') else 'normal'
+        
+        return jsonify({
+            'type': 'template',
+            'template_url': template_url,
+            'name': participant.name,
+            'x_percent': event.name_position_x or 50,
+            'y_percent': event.name_position_y or 35,
+            'font_size': event.font_size or 36,
+            'font_color': event.font_color or '#000000',
+            'font_family': font_map.get(font_name, 'Arial, sans-serif'),
+            'font_weight': font_weight
+        })
+    else:
+        return jsonify({'error': 'No certificate available'}), 404
+
+
+@public_bp.route('/template/<int:event_id>')
+def serve_template(event_id):
+    """Serve template image for client-side rendering."""
+    event = Event.query.get_or_404(event_id)
+    
+    if not event.is_visible or not event.template_filename:
+        return '', 404
+    
+    template_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'templates', event.template_filename)
+    
+    if not os.path.exists(template_path):
+        return '', 404
+    
+    return send_file(template_path, mimetype='image/png')
+
+
+@public_bp.route('/certificate-file/<filename>')
+def serve_certificate_file(filename):
+    """Serve custom certificate file."""
+    cert_path = os.path.join(current_app.config['CERTIFICATES_FOLDER'], filename)
+    
+    if not os.path.exists(cert_path):
+        return '', 404
+    
+    return send_file(cert_path, mimetype='image/png')
+
+
 # ==================== ERROR HANDLERS ====================
 
 @public_bp.app_errorhandler(404)
@@ -306,3 +398,4 @@ def internal_error(e):
     """Handle 500 errors."""
     db.session.rollback()
     return render_template('errors/500.html'), 500
+

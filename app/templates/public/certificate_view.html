@@ -29,41 +29,96 @@
                     </div>
                 </div>
                 <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                    <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
-                        class="btn btn-gradient-success btn-lg">
+                    <button type="button" id="downloadBtn" class="btn btn-gradient-success btn-lg">
                         <i class="bi bi-download"></i> Download Certificate
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Certificate Preview -->
+        <!-- Certificate Preview (Canvas-based) -->
         <div class="glass-card animate-in delay-2" style="overflow: hidden;">
             <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
                 style="background: var(--gradient-primary); color: white;">
                 <span><i class="bi bi-image"></i> Certificate Preview</span>
-                <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
-                    class="btn btn-light btn-sm">
+                <button type="button" id="downloadBtnSmall" class="btn btn-light btn-sm">
                     <i class="bi bi-download"></i> Download
-                </a>
+                </button>
             </div>
-            <div class="text-center p-3" style="background: #f0f0f0;">
-                <img src="{{ url_for('public.preview_certificate', participant_id=participant.id) }}"
-                    alt="Certificate Preview"
-                    style="max-width: 100%; height: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div class="text-center p-3" style="background: #f0f0f0; min-height: 400px;">
+                <!-- Loading spinner -->
+                <div id="loadingSpinner" class="d-flex justify-content-center align-items-center"
+                    style="height: 400px;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <!-- Canvas for rendering -->
+                <canvas id="certificateCanvas"
+                    style="display: none; max-width: 100%; height: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"></canvas>
+                <!-- Error message -->
+                <div id="errorMessage" class="alert alert-danger" style="display: none;">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to load certificate.
+                    <a href="{{ url_for('public.preview_certificate', participant_id=participant.id) }}"
+                        target="_blank">Click here to view directly</a>
+                </div>
             </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="text-center mt-4 animate-in delay-3">
-            <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
-                class="btn btn-gradient-success btn-lg me-2">
+            <button type="button" id="downloadBtnLarge" class="btn btn-gradient-success btn-lg me-2">
                 <i class="bi bi-download"></i> Download Certificate
-            </a>
+            </button>
             <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary btn-lg">
                 <i class="bi bi-house"></i> Back to Home
             </a>
         </div>
     </div>
 </div>
+
+<!-- Certificate Canvas Script -->
+<script src="{{ url_for('static', filename='js/certificate_canvas.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async function () {
+        const renderer = new CertificateRenderer('certificateCanvas');
+        const participantId = {{ participant.id }
+    };
+    const participantName = "{{ participant.name | replace('"', '\\"') }}";
+
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const canvas = document.getElementById('certificateCanvas');
+    const errorMessage = document.getElementById('errorMessage');
+
+    try {
+        const success = await renderer.load(participantId);
+
+        if (success) {
+            loadingSpinner.style.display = 'none';
+            canvas.style.display = 'block';
+        } else {
+            throw new Error('Render failed');
+        }
+    } catch (error) {
+        console.error('Failed to render certificate:', error);
+        loadingSpinner.style.display = 'none';
+        errorMessage.style.display = 'block';
+    }
+
+    // Download button handlers
+    const downloadFilename = participantName.replace(/[^a-zA-Z0-9]/g, '_') + '_certificate.png';
+
+    document.getElementById('downloadBtn').addEventListener('click', function () {
+        renderer.download(downloadFilename);
+    });
+
+    document.getElementById('downloadBtnSmall').addEventListener('click', function () {
+        renderer.download(downloadFilename);
+    });
+
+    document.getElementById('downloadBtnLarge').addEventListener('click', function () {
+        renderer.download(downloadFilename);
+    });
+});
+</script>
 {% endblock %}
