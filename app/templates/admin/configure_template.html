@@ -167,100 +167,75 @@
         const fontColorInput = document.getElementById('font_color');
         const fontNameSelect = document.getElementById('font_name');
         const positionDisplay = document.getElementById('positionDisplay');
-        const templateImage = document.getElementById('templateImage');
 
-        // Template dimensions from backend
-        const originalWidth = {{ template_width|default (0)
-    }};
-    const originalHeight = {{ template_height|default (0) }};
+        // Font mapping - matches certificate_generator.py AVAILABLE_FONTS
+        const fontFamilyMap = {
+            'arial': 'Arial, Helvetica, sans-serif',
+            'arial_bold': 'Arial, Helvetica, sans-serif',
+            'times': 'Times, "Times New Roman", serif',
+            'times_bold': 'Times, "Times New Roman", serif',
+            'georgia': 'Georgia, serif',
+            'verdana': 'Verdana, Geneva, sans-serif',
+            'tahoma': 'Tahoma, Geneva, sans-serif',
+            'courier': 'Courier, "Courier New", monospace',
+            'trebuchet': '"Trebuchet MS", Helvetica, sans-serif',
+            'palatino': '"Palatino Linotype", "Book Antiqua", Palatino, serif',
+            'garamond': 'Garamond, "Times New Roman", serif',
+            'bookman': '"Bookman Old Style", serif',
+            'century': '"Century Gothic", CenturyGothic, AppleGothic, sans-serif',
+            'lucida': '"Lucida Console", Monaco, monospace',
+        };
 
-    // Font mapping - matches certificate_generator.py AVAILABLE_FONTS
-    const fontFamilyMap = {
-        'arial': 'Arial, Helvetica, sans-serif',
-        'arial_bold': 'Arial, Helvetica, sans-serif',
-        'times': 'Times, "Times New Roman", serif',
-        'times_bold': 'Times, "Times New Roman", serif',
-        'georgia': 'Georgia, serif',
-        'verdana': 'Verdana, Geneva, sans-serif',
-        'tahoma': 'Tahoma, Geneva, sans-serif',
-        'courier': 'Courier, "Courier New", monospace',
-        'trebuchet': '"Trebuchet MS", Helvetica, sans-serif',
-        'palatino': '"Palatino Linotype", "Book Antiqua", Palatino, serif',
-        'garamond': 'Garamond, "Times New Roman", serif',
-        'bookman': '"Bookman Old Style", serif',
-        'century': '"Century Gothic", CenturyGothic, AppleGothic, sans-serif',
-        'lucida': '"Lucida Console", Monaco, monospace',
-    };
+        const fontWeightMap = {
+            'arial_bold': 'bold',
+            'times_bold': 'bold',
+        };
 
-    const fontWeightMap = {
-        'arial_bold': 'bold',
-        'times_bold': 'bold',
-    };
+        function updateMarkerStyle() {
+            marker.style.fontSize = fontSizeInput.value + 'px';
+            marker.style.color = fontColorInput.value;
 
-    function updateMarkerStyle() {
-        // Calculate scale factor
-        let scale = 1;
-        if (originalWidth > 0 && templateImage.offsetWidth > 0) {
-            scale = templateImage.offsetWidth / originalWidth;
+            const selectedFont = fontNameSelect.value;
+            marker.style.fontFamily = fontFamilyMap[selectedFont] || 'Arial, sans-serif';
+            marker.style.fontWeight = fontWeightMap[selectedFont] || 'normal';
         }
 
-        // Apply scale to font size so preview matches the real output
-        const realFontSize = parseFloat(fontSizeInput.value) || 36;
-        const visualFontSize = realFontSize * scale;
+        function initializeMarker() {
+            const xPercent = parseFloat(nameXInput.value);
+            const yPercent = parseFloat(nameYInput.value);
 
-        marker.style.fontSize = visualFontSize + 'px';
-        marker.style.color = fontColorInput.value;
-
-        const selectedFont = fontNameSelect.value;
-        marker.style.fontFamily = fontFamilyMap[selectedFont] || 'Arial, sans-serif';
-        marker.style.fontWeight = fontWeightMap[selectedFont] || 'normal';
-    }
-
-    function initializeMarker() {
-        const xPercent = parseFloat(nameXInput.value);
-        const yPercent = parseFloat(nameYInput.value);
-
-        marker.style.left = xPercent + '%';
-        marker.style.top = yPercent + '%';
-
-        // Wait for image to load to get dimensions for scaling
-        if (templateImage.complete) {
+            marker.style.left = xPercent + '%';
+            marker.style.top = yPercent + '%';
             updateMarkerStyle();
-        } else {
-            templateImage.onload = updateMarkerStyle;
         }
-    }
 
-    // Update on window resize as image width changes
-    window.addEventListener('resize', updateMarkerStyle);
+        // Click on the overlay to set position
+        clickOverlay.addEventListener('click', function (e) {
+            const rect = clickOverlay.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
 
-    // Click on the overlay to set position
-    clickOverlay.addEventListener('click', function (e) {
-        const rect = clickOverlay.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+            const xPercent = (x / clickOverlay.offsetWidth) * 100;
+            const yPercent = (y / clickOverlay.offsetHeight) * 100;
 
-        const xPercent = (x / clickOverlay.offsetWidth) * 100;
-        const yPercent = (y / clickOverlay.offsetHeight) * 100;
+            // Update hidden inputs
+            nameXInput.value = xPercent.toFixed(2);
+            nameYInput.value = yPercent.toFixed(2);
 
-        // Update hidden inputs
-        nameXInput.value = xPercent.toFixed(2);
-        nameYInput.value = yPercent.toFixed(2);
+            // Update marker position
+            marker.style.left = xPercent + '%';
+            marker.style.top = yPercent + '%';
 
-        // Update marker position
-        marker.style.left = xPercent + '%';
-        marker.style.top = yPercent + '%';
+            // Update display
+            positionDisplay.textContent = xPercent.toFixed(1) + '%, ' + yPercent.toFixed(1) + '%';
+        });
 
-        // Update display
-        positionDisplay.textContent = xPercent.toFixed(1) + '%, ' + yPercent.toFixed(1) + '%';
-    });
+        fontSizeInput.addEventListener('input', updateMarkerStyle);
+        fontColorInput.addEventListener('input', updateMarkerStyle);
+        fontNameSelect.addEventListener('change', updateMarkerStyle);
 
-    fontSizeInput.addEventListener('input', updateMarkerStyle);
-    fontColorInput.addEventListener('input', updateMarkerStyle);
-    fontNameSelect.addEventListener('change', updateMarkerStyle);
-
-    // Initialize marker position on load
-    initializeMarker();
+        // Initialize marker position on load
+        initializeMarker();
     });
 </script>
 {% endif %}
