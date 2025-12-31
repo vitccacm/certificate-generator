@@ -13,12 +13,21 @@ if not os.path.exists(FONTS_DIR):
 
 # Font URLs (Using reliable GitHub raw links or Google Fonts)
 # Using DejaVu Sans as a robust fallback for everything
+# Using Google Fonts Raw Links (High Availability)
 FONTS = {
-    'DejaVuSans.ttf': 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf',
-    'DejaVuSans-Bold.ttf': 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf',
-    'DejaVuSerif.ttf': 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSerif.ttf', # For Times
-    'DejaVuSerif-Bold.ttf': 'https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSerif-Bold.ttf',
-    'LiberationSans-Regular.ttf': 'https://github.com/liberationfonts/liberation-fonts/raw/master/liberation-fonts-ttf/LiberationSans-Regular.ttf' # For Arial
+    # Noto Sans is a perfect metric-compatible replacement for DejaVu/Arial checks
+    'DejaVuSans.ttf': 'https://github.com/google/fonts/raw/main/ofl/notosans/NotoSans-Regular.ttf',
+    'DejaVuSans-Bold.ttf': 'https://github.com/google/fonts/raw/main/ofl/notosans/NotoSans-Bold.ttf',
+    
+    # Tinos is metric-compatible with Times New Roman
+    'times.ttf': 'https://github.com/google/fonts/raw/main/apache/tinos/Tinos-Regular.ttf',
+    'timesbd.ttf': 'https://github.com/google/fonts/raw/main/apache/tinos/Tinos-Bold.ttf',
+    
+    # Also save as DejaVuSerif for backward compatibility with my code
+    'DejaVuSerif.ttf': 'https://github.com/google/fonts/raw/main/apache/tinos/Tinos-Regular.ttf',
+    
+    # Simple Arial fallback
+    'arial.ttf': 'https://github.com/google/fonts/raw/main/ofl/notosans/NotoSans-Regular.ttf'
 }
 
 def download_file(url, filename):
