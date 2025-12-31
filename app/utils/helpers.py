@@ -9,7 +9,7 @@ from flask import current_app
 
 def allowed_file(filename):
     """
-    Check if file has allowed extension for certificates (PDF only).
+    Check if file has allowed extension for certificates (PNG images only).
     
     Args:
         filename: Name of the file to check
@@ -21,13 +21,13 @@ def allowed_file(filename):
         return False
     
     ext = filename.rsplit('.', 1)[1].lower()
-    allowed = current_app.config.get('ALLOWED_EXTENSIONS', {'pdf'})
+    allowed = current_app.config.get('ALLOWED_EXTENSIONS', {'png'})
     return ext in allowed
 
 
 def allowed_template_file(filename):
     """
-    Check if file has allowed extension for certificate templates (PDF only).
+    Check if file has allowed extension for certificate templates (PNG images only).
     
     Args:
         filename: Name of the file to check
@@ -39,7 +39,7 @@ def allowed_template_file(filename):
         return False
     
     ext = filename.rsplit('.', 1)[1].lower()
-    return ext == 'pdf'
+    return ext == 'png'
 
 
 def allowed_bulk_file(filename):

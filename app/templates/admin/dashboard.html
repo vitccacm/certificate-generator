@@ -1,29 +1,21 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}Admin Dashboard - Certificate Portal{% endblock %}
+{% block title %}Dashboard - Certificate Portal{% endblock %}
+
+{% block breadcrumb %}
+<span>Dashboard</span>
+{% endblock %}
 
 {% block content %}
-<!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4 animate-in">
-    <div>
-        <h2 class="fw-bold mb-1">
-            <span class="text-gradient">Dashboard</span>
-        </h2>
-        <p class="text-muted mb-0">Welcome back, {{ session.get('admin_username', 'Admin') }}!</p>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ url_for('admin.settings') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-gear"></i> Settings
-        </a>
-        <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
-    </div>
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <p>Welcome back, {{ session.get('admin_username', 'Admin') }}!</p>
 </div>
 
 <!-- Stats Cards -->
 <div class="row g-4 mb-4">
-    <div class="col-md-4 animate-in delay-1">
+    <div class="col-md-4">
         <div class="stat-card">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -35,7 +27,7 @@
         </div>
     </div>
 
-    <div class="col-md-4 animate-in delay-2">
+    <div class="col-md-4">
         <div class="stat-card success">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -47,7 +39,7 @@
         </div>
     </div>
 
-    <div class="col-md-4 animate-in delay-3">
+    <div class="col-md-4">
         <div class="stat-card secondary">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -62,10 +54,10 @@
 
 <div class="row g-4">
     <!-- Events List -->
-    <div class="col-lg-7 animate-in delay-4">
+    <div class="col-lg-7">
         <div class="glass-card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-semibold mb-0"><i class="bi bi-calendar-event"></i> Events</h5>
+                <h5 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2"></i>Events</h5>
                 <a href="{{ url_for('admin.new_event') }}" class="btn btn-gradient btn-sm">
                     <i class="bi bi-plus"></i> New Event
                 </a>
@@ -104,10 +96,10 @@
     </div>
 
     <!-- Recent Downloads -->
-    <div class="col-lg-5 animate-in delay-4">
+    <div class="col-lg-5">
         <div class="glass-card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-semibold mb-0"><i class="bi bi-clock-history"></i> Recent Downloads</h5>
+                <h5 class="fw-semibold mb-0"><i class="bi bi-clock-history me-2"></i>Recent Downloads</h5>
                 <a href="{{ url_for('admin.view_download_logs') }}" class="btn btn-outline-secondary btn-sm">
                     View All
                 </a>

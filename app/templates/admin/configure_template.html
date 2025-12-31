@@ -1,25 +1,33 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
 {% block title %}Configure Certificate Template - {{ event.name }}{% endblock %}
 
-{% block content %}
-<!-- Back Link -->
-<a href="{{ url_for('admin.event_detail', event_id=event.id) }}"
-    class="btn btn-link text-decoration-none mb-3 animate-in">
-    <i class="bi bi-arrow-left"></i> Back to Event
-</a>
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.event_detail', event_id=event.id) }}">{{ event.name
+                }}</a></li>
+        <li class="breadcrumb-item active">Configure Template</li>
+    </ol>
+</nav>
+{% endblock %}
 
-<div class="glass-card p-4 mb-4 animate-in delay-1">
-    <h4 class="fw-bold mb-3">
-        <i class="bi bi-file-earmark-pdf text-gradient"></i>
-        Configure Certificate Template
-    </h4>
-    <p class="text-muted mb-0">Event: <strong>{{ event.name }}</strong></p>
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1>Configure Template</h1>
+        <p>Event: <strong>{{ event.name }}</strong></p>
+    </div>
+    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Event
+    </a>
 </div>
 
 <div class="row g-4">
     <!-- Upload Template Section -->
-    <div class="col-lg-4 animate-in delay-2">
+    <div class="col-lg-4">
         <div class="glass-card p-4 h-100">
             <h5 class="fw-semibold mb-3">
                 <i class="bi bi-upload text-primary"></i> Upload Template
@@ -28,9 +36,10 @@
             <form action="{{ url_for('admin.upload_template', event_id=event.id) }}" method="POST"
                 enctype="multipart/form-data">
                 <div class="mb-3">
-                    <label for="template" class="form-label">PDF Template File</label>
-                    <input type="file" class="form-control" id="template" name="template" accept=".pdf" required>
-                    <div class="form-text">Upload a PDF certificate template. The name will be overlaid on this.</div>
+                    <label for="template" class="form-label">PNG Template Image</label>
+                    <input type="file" class="form-control" id="template" name="template" accept=".png" required>
+                    <div class="form-text">Upload a PNG certificate template. The participant's name will be overlaid on
+                        this image.</div>
                 </div>
                 <button type="submit" class="btn btn-gradient w-100">
                     <i class="bi bi-cloud-upload"></i> Upload Template
@@ -55,7 +64,7 @@
     </div>
 
     <!-- Template Preview & Position Section -->
-    <div class="col-lg-8 animate-in delay-3">
+    <div class="col-lg-8">
         <div class="glass-card p-4">
             <h5 class="fw-semibold mb-3">
                 <i class="bi bi-cursor text-primary"></i> Configure Name Position
@@ -103,9 +112,15 @@
 
             <!-- Template Preview with Click-to-Position -->
             <div class="position-relative border rounded overflow-hidden" style="background: #f0f0f0;">
-                <div id="templateContainer" style="position: relative; cursor: crosshair;">
+                <div id="templateContainer" style="position: relative;">
+                    <!-- PNG Preview as Image -->
                     <img id="templateImage" src="{{ url_for('admin.template_preview', event_id=event.id) }}"
-                        alt="Certificate Template" style="max-width: 100%; display: block;" onload="initializeMarker()">
+                        style="width: 100%; height: auto; display: block;" alt="Certificate Template">
+
+                    <!-- Clickable overlay for positioning -->
+                    <div id="clickOverlay"
+                        style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; cursor: crosshair; z-index: 10;">
+                    </div>
 
                     <!-- Position Marker -->
                     <div id="positionMarker" style="position: absolute; 
@@ -114,6 +129,7 @@
                                 font-weight: bold;
                                 text-align: center;
                                 white-space: nowrap;
+                                z-index: 20;
                                 text-shadow: 1px 1px 2px rgba(255,255,255,0.8), -1px -1px 2px rgba(255,255,255,0.8);">
                         Sample Name
                     </div>
@@ -130,9 +146,9 @@
 
             {% else %}
             <div class="text-center py-5">
-                <i class="bi bi-file-earmark-pdf display-4 text-muted"></i>
+                <i class="bi bi-image display-4 text-muted"></i>
                 <h5 class="mt-3">No Template Uploaded</h5>
-                <p class="text-muted mb-0">Upload a PDF template first to configure the name position.</p>
+                <p class="text-muted mb-0">Upload a PNG template first to configure the name position.</p>
             </div>
             {% endif %}
         </div>
@@ -143,7 +159,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const container = document.getElementById('templateContainer');
-        const image = document.getElementById('templateImage');
+        const clickOverlay = document.getElementById('clickOverlay');
         const marker = document.getElementById('positionMarker');
         const nameXInput = document.getElementById('name_x');
         const nameYInput = document.getElementById('name_y');
@@ -152,40 +168,27 @@
         const fontNameSelect = document.getElementById('font_name');
         const positionDisplay = document.getElementById('positionDisplay');
 
-        // Font mapping from PyMuPDF codes to CSS font-family
+        // Font mapping - matches certificate_generator.py AVAILABLE_FONTS
         const fontFamilyMap = {
-            'helv': 'Helvetica, Arial, sans-serif',
-            'hebo': 'Helvetica, Arial, sans-serif',
-            'tiro': 'Times, "Times New Roman", serif',
-            'tiit': 'Times, "Times New Roman", serif',
-            'tibo': 'Times, "Times New Roman", serif',
-            'cour': 'Courier, "Courier New", monospace',
-            'cobo': 'Courier, "Courier New", monospace',
-            'symb': 'Symbol, serif'
+            'arial': 'Arial, Helvetica, sans-serif',
+            'arial_bold': 'Arial, Helvetica, sans-serif',
+            'times': 'Times, "Times New Roman", serif',
+            'times_bold': 'Times, "Times New Roman", serif',
+            'georgia': 'Georgia, serif',
+            'verdana': 'Verdana, Geneva, sans-serif',
+            'tahoma': 'Tahoma, Geneva, sans-serif',
+            'courier': 'Courier, "Courier New", monospace',
+            'trebuchet': '"Trebuchet MS", Helvetica, sans-serif',
+            'palatino': '"Palatino Linotype", "Book Antiqua", Palatino, serif',
+            'garamond': 'Garamond, "Times New Roman", serif',
+            'bookman': '"Bookman Old Style", serif',
+            'century': '"Century Gothic", CenturyGothic, AppleGothic, sans-serif',
+            'lucida': '"Lucida Console", Monaco, monospace',
         };
 
-        // Font weight mapping
         const fontWeightMap = {
-            'helv': 'normal',
-            'hebo': 'bold',
-            'tiro': 'normal',
-            'tiit': 'normal',
-            'tibo': 'bold',
-            'cour': 'normal',
-            'cobo': 'bold',
-            'symb': 'normal'
-        };
-
-        // Font style mapping
-        const fontStyleMap = {
-            'helv': 'normal',
-            'hebo': 'normal',
-            'tiro': 'normal',
-            'tiit': 'italic',
-            'tibo': 'normal',
-            'cour': 'normal',
-            'cobo': 'normal',
-            'symb': 'normal'
+            'arial_bold': 'bold',
+            'times_bold': 'bold',
         };
 
         function updateMarkerStyle() {
@@ -193,9 +196,8 @@
             marker.style.color = fontColorInput.value;
 
             const selectedFont = fontNameSelect.value;
-            marker.style.fontFamily = fontFamilyMap[selectedFont] || 'Helvetica, Arial, sans-serif';
+            marker.style.fontFamily = fontFamilyMap[selectedFont] || 'Arial, sans-serif';
             marker.style.fontWeight = fontWeightMap[selectedFont] || 'normal';
-            marker.style.fontStyle = fontStyleMap[selectedFont] || 'normal';
         }
 
         function initializeMarker() {
@@ -207,16 +209,14 @@
             updateMarkerStyle();
         }
 
-        // Make initializeMarker available globally
-        window.initializeMarker = initializeMarker;
-
-        container.addEventListener('click', function (e) {
-            const rect = image.getBoundingClientRect();
+        // Click on the overlay to set position
+        clickOverlay.addEventListener('click', function (e) {
+            const rect = clickOverlay.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            const xPercent = (x / image.offsetWidth) * 100;
-            const yPercent = (y / image.offsetHeight) * 100;
+            const xPercent = (x / clickOverlay.offsetWidth) * 100;
+            const yPercent = (y / clickOverlay.offsetHeight) * 100;
 
             // Update hidden inputs
             nameXInput.value = xPercent.toFixed(2);
@@ -234,10 +234,8 @@
         fontColorInput.addEventListener('input', updateMarkerStyle);
         fontNameSelect.addEventListener('change', updateMarkerStyle);
 
-        // Initialize on load
-        if (image.complete) {
-            initializeMarker();
-        }
+        // Initialize marker position on load
+        initializeMarker();
     });
 </script>
 {% endif %}

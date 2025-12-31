@@ -5,11 +5,11 @@ Includes CAPTCHA validation for download requests.
 import os
 import io
 from flask import (Blueprint, render_template, request, redirect, url_for, 
-                   flash, current_app, send_file, session)
+                   flash, current_app, send_file, session, Response)
 from app.models import db, Event, Participant
 from app.utils.captcha import get_captcha_question, validate_captcha
 from app.utils.helpers import validate_email, sanitize_email
-from app.utils.certificate_generator import generate_certificate
+from app.utils.certificate_generator import generate_certificate_png
 
 public_bp = Blueprint('public', __name__)
 
@@ -129,8 +129,14 @@ def preview_certificate(participant_id):
     Serve certificate PDF for preview (inline display).
     Supports both template-based (dynamic generation) and pre-uploaded certificates.
     """
+    import logging
+    
     participant = Participant.query.get_or_404(participant_id)
     event = participant.event
+    
+    logging.info(f"Preview certificate for participant {participant_id}: {participant.name}")
+    logging.info(f"Event: {event.name}, has_template: {event.has_template}, template_filename: {event.template_filename}")
+    logging.info(f"Participant certificate_filename: {participant.certificate_filename}")
     
     # Verify event is still visible
     if not event.is_visible:
@@ -142,15 +148,22 @@ def preview_certificate(participant_id):
         # Generate certificate dynamically from template
         template_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'templates', event.template_filename)
         
+        logging.info(f"Template path: {template_path}")
+        logging.info(f"Template exists: {os.path.exists(template_path)}")
+        
         if not os.path.exists(template_path):
+            logging.error(f"Template file not found: {template_path}")
             flash('Certificate template not found.', 'error')
             return redirect(url_for('public.index'))
         
         if event.name_position_x is None or event.name_position_y is None:
+            logging.error(f"Template not configured: x={event.name_position_x}, y={event.name_position_y}")
             flash('Certificate template not properly configured.', 'error')
             return redirect(url_for('public.index'))
         
-        cert_bytes = generate_certificate(
+        logging.info(f"Generating certificate with: x={event.name_position_x}, y={event.name_position_y}, font={event.font_name}")
+        
+        cert_bytes = generate_certificate_png(
             template_path=template_path,
             participant_name=participant.name,
             x_percent=event.name_position_x,
@@ -161,12 +174,16 @@ def preview_certificate(participant_id):
         )
         
         if cert_bytes is None:
+            logging.error("Certificate generation returned None!")
             flash('Could not generate certificate.', 'error')
             return redirect(url_for('public.index'))
         
-        return send_file(
-            io.BytesIO(cert_bytes),
-            mimetype='application/pdf'
+        logging.info(f"Certificate generated successfully, size: {len(cert_bytes)} bytes")
+        
+        # Use Response instead of send_file for Passenger WSGI compatibility
+        return Response(
+            cert_bytes,
+            mimetype='image/png'
         )
     else:
         # Custom certificate - serve from file
@@ -184,7 +201,7 @@ def preview_certificate(participant_id):
         # Serve file inline for preview
         return send_file(
             cert_path,
-            mimetype='application/pdf'
+            mimetype='image/png'
         )
 
 
@@ -203,10 +220,10 @@ def download_certificate(participant_id):
         flash('This event is no longer available.', 'error')
         return redirect(url_for('public.index'))
     
-    # Create download filename: name_of_student_name_of_event.pdf
+    # Create download filename: name_of_student_name_of_event.png
     student_name = participant.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
     event_name = event.name.replace(' ', '_').replace('/', '_').replace('\\', '_')
-    download_filename = f"{student_name}_{event_name}.pdf"
+    download_filename = f"{student_name}_{event_name}.png"
     
     # Check if this is a template-based event (no individual certificate file)
     if event.has_template and not participant.certificate_filename:
@@ -223,7 +240,7 @@ def download_certificate(participant_id):
             return redirect(url_for('public.index'))
         
         # Generate the certificate with participant's name
-        cert_bytes = generate_certificate(
+        cert_bytes = generate_certificate_png(
             template_path=template_path,
             participant_name=participant.name,
             x_percent=event.name_position_x,
@@ -242,13 +259,13 @@ def download_certificate(participant_id):
         participant.increment_download(ip_address=ip_address)
         db.session.commit()
         
-        # Serve generated certificate
-        return send_file(
-            io.BytesIO(cert_bytes),
-            as_attachment=True,
-            download_name=download_filename,
-            mimetype='application/pdf'
+        # Use Response instead of send_file for Passenger WSGI compatibility
+        response = Response(
+            cert_bytes,
+            mimetype='image/png'
         )
+        response.headers['Content-Disposition'] = f'attachment; filename="{download_filename}"'
+        return response
     else:
         # Traditional: serve pre-uploaded certificate file
         if not participant.certificate_filename:
@@ -272,7 +289,7 @@ def download_certificate(participant_id):
             cert_path,
             as_attachment=True,
             download_name=download_filename,
-            mimetype='application/pdf'
+            mimetype='image/png'
         )
 
 

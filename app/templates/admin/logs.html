@@ -1,27 +1,18 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
 {% block title %}{{ 'Admin Logs' if log_type == 'admin' else 'Download Logs' }} - Certificate Portal{% endblock %}
 
-{% block content %}
-<!-- Back Link -->
-<a href="{{ url_for('admin.settings') }}" class="btn btn-link text-decoration-none mb-3 animate-in">
-    <i class="bi bi-arrow-left"></i> Back to Settings
-</a>
+{% block breadcrumb %}
+<span>{{ 'Activity Logs' if log_type == 'admin' else 'Download Logs' }}</span>
+{% endblock %}
 
-<!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4 animate-in delay-1">
-    <div>
-        <h2 class="fw-bold mb-1">
-            <span class="text-gradient">
-                {% if log_type == 'admin' %}Admin Activity Logs{% else %}Download Logs{% endif %}
-            </span>
-        </h2>
-        <p class="text-muted mb-0">
-            {% if log_type == 'admin' %}
-            Track all admin actions and login attempts
-            {% else %}
-            Track certificate downloads by users
-            {% endif %}
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="page-header mb-0">
+        <h1>{% if log_type == 'admin' %}Activity Logs{% else %}Download Logs{% endif %}</h1>
+        <p class="mb-0">
+            {% if log_type == 'admin' %}Track all admin actions{% else %}Track certificate downloads{% endif %}
         </p>
     </div>
     <div class="btn-group">

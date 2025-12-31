@@ -1,12 +1,17 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}Admin Settings - Certificate Portal{% endblock %}
+{% block title %}Settings - Certificate Portal{% endblock %}
+
+{% block breadcrumb %}
+<span>Settings</span>
+{% endblock %}
 
 {% block content %}
-<!-- Back Link -->
-<a href="{{ url_for('admin.dashboard') }}" class="btn btn-link text-decoration-none mb-3 animate-in">
-    <i class="bi bi-arrow-left"></i> Back to Dashboard
-</a>
+<!-- Page Header -->
+<div class="page-header">
+    <h1>Settings</h1>
+    <p>Manage admin accounts and view activity logs</p>
+</div>
 
 <div class="row g-4">
     <!-- Change Password -->

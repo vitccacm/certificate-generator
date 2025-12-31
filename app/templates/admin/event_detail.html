@@ -1,49 +1,48 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
 {% block title %}{{ event.name }} - Certificate Portal{% endblock %}
 
-{% block content %}
-<!-- Back Link -->
-<a href="{{ url_for('admin.dashboard') }}" class="btn btn-link text-decoration-none mb-3 animate-in">
-    <i class="bi bi-arrow-left"></i> Back to Dashboard
-</a>
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">{{ event.name }}</li>
+    </ol>
+</nav>
+{% endblock %}
 
-<!-- Event Header Card -->
-<div class="glass-card p-4 mb-4 animate-in delay-1">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <div class="d-flex align-items-start gap-3">
-                <div
-                    style="width: 60px; height: 60px; border-radius: 16px; background: var(--gradient-primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
-                    <i class="bi bi-trophy"></i>
-                </div>
-                <div>
-                    <h3 class="fw-bold mb-1">{{ event.name }}</h3>
-                    <div class="d-flex flex-wrap gap-3 text-muted">
-                        {% if event.event_date %}
-                        <span><i class="bi bi-calendar3"></i> {{ event.event_date.strftime('%B %d, %Y') }}</span>
-                        {% endif %}
-                        <span><i class="bi bi-people"></i> {{ event.participant_count }} participants</span>
-                        <span><i class="bi bi-download"></i> {{ event.total_downloads }} downloads</span>
-                    </div>
-                    {% if event.description %}
-                    <p class="mt-2 mb-0 opacity-75">{{ event.description }}</p>
-                    {% endif %}
-                </div>
-            </div>
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div class="d-flex align-items-start gap-3">
+        <div
+            style="width: 60px; height: 60px; border-radius: 16px; background: var(--gradient-primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+            <i class="bi bi-trophy"></i>
         </div>
-        <div class="col-md-4 mt-3 mt-md-0">
-            <div class="d-flex flex-wrap gap-2 justify-content-md-end">
-                <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }} fs-6 px-3 py-2">
-                    <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }}"></i>
-                    {{ 'Visible' if event.is_visible else 'Hidden' }}
-                </span>
+        <div>
+            <h1 class="mb-1">{{ event.name }}</h1>
+            <div class="d-flex flex-wrap gap-3 text-muted">
+                {% if event.event_date %}
+                <span><i class="bi bi-calendar3"></i> {{ event.event_date.strftime('%B %d, %Y') }}</span>
+                {% endif %}
+                <span><i class="bi bi-people"></i> {{ event.participant_count }} participants</span>
+                <span><i class="bi bi-download"></i> {{ event.total_downloads }} downloads</span>
             </div>
+            {% if event.description %}
+            <p class="mt-2 mb-0 opacity-75">{{ event.description }}</p>
+            {% endif %}
         </div>
     </div>
+    <div class="d-flex gap-2">
+        <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }} fs-6 px-3 py-2">
+            <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }}"></i>
+            {{ 'Visible' if event.is_visible else 'Hidden' }}
+        </span>
+    </div>
+</div>
 
-    <!-- Event Actions -->
-    <hr class="my-3">
+<!-- Event Actions -->
+<div class="glass-card p-3 mb-4">
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ url_for('admin.edit_event', event_id=event.id) }}" class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Edit Event
@@ -60,12 +59,12 @@
     </div>
 </div>
 
-<!-- Certificate Template Configuration (NEW) -->
-<div class="glass-card p-4 mb-4 animate-in delay-2">
+<!-- Certificate Template Configuration -->
+<div class="glass-card p-4 mb-4">
     <div class="d-flex justify-content-between align-items-center">
         <div>
             <h5 class="fw-semibold mb-1">
-                <i class="bi bi-file-earmark-pdf text-primary"></i> Certificate Template
+                <i class="bi bi-image text-primary"></i> Certificate Template
             </h5>
             <p class="text-muted small mb-0">
                 {% if event.has_template %}
@@ -76,7 +75,7 @@
                     set</span>
                 {% endif %}
                 {% else %}
-                Upload a PDF template and configure where participant names should appear.
+                Upload a PNG template and configure where participant names should appear.
                 {% endif %}
             </p>
         </div>
@@ -107,7 +106,7 @@
 </div>
 
 <!-- Bulk Import Students -->
-<div class="glass-card p-4 mb-4 animate-in delay-3">
+<div class="glass-card p-4 mb-4">
     <div class="d-flex justify-content-between align-items-center">
         <div>
             <h5 class="fw-semibold mb-1">
@@ -124,7 +123,7 @@
 </div>
 
 <!-- Add Single Participant -->
-<div class="glass-card p-4 mb-4 animate-in delay-3">
+<div class="glass-card p-4 mb-4">
     <h5 class="fw-semibold mb-3">
         <i class="bi bi-person-plus text-primary"></i> Add Single Participant
     </h5>
@@ -150,14 +149,14 @@
         <div class="col-md-6">
             <div class="border rounded p-3 h-100">
                 <h6 class="fw-semibold mb-2">
-                    <i class="bi bi-file-pdf text-danger"></i> Custom Certificate
+                    <i class="bi bi-image text-primary"></i> Custom Certificate
                 </h6>
                 <p class="text-muted small mb-3">
-                    Upload a custom PDF certificate for this participant.
+                    Upload a custom PNG certificate for this participant.
                 </p>
                 <a href="{{ url_for('admin.new_participant', event_id=event.id) }}?mode=custom"
-                    class="btn btn-outline-danger w-100">
-                    <i class="bi bi-upload"></i> Add with Custom PDF
+                    class="btn btn-outline-primary w-100">
+                    <i class="bi bi-upload"></i> Add with Custom PNG
                 </a>
             </div>
         </div>
@@ -165,7 +164,7 @@
 </div>
 
 <!-- Participants Table -->
-<div class="glass-card animate-in delay-4">
+<div class="glass-card">
     <div class="p-4 border-bottom">
         <h5 class="fw-semibold mb-0">
             <i class="bi bi-people"></i> Participants ({{ participants|length }})
@@ -198,7 +197,7 @@
                     <td>
                         {% if participant.certificate_filename %}
                         <small class="text-muted" title="{{ participant.certificate_filename }}">
-                            <i class="bi bi-file-pdf text-danger"></i>
+                            <i class="bi bi-image text-primary"></i>
                             {{ participant.certificate_filename[:25] + '...' if participant.certificate_filename|length
                             > 25 else participant.certificate_filename }}
                             <span class="badge bg-warning text-dark">Custom</span>
@@ -213,7 +212,6 @@
                         <span class="badge bg-info">{{ participant.download_count }}</span>
                     </td>
                     <td class="text-end">
-                        <!-- Normal actions -->
                         <div class="btn-group btn-group-sm" id="actions-{{ participant.id }}">
                             <a href="{{ url_for('admin.edit_participant', participant_id=participant.id) }}"
                                 class="btn btn-outline-secondary" title="Edit">
@@ -224,7 +222,6 @@
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
-                        <!-- Confirm delete actions (hidden by default) -->
                         <div class="d-none" id="confirm-{{ participant.id }}">
                             <form action="{{ url_for('admin.delete_participant', participant_id=participant.id) }}"
                                 method="POST" class="d-inline">
@@ -245,12 +242,12 @@
             </tbody>
         </table>
     </div>
-
     {% else %}
     <div class="p-5 text-center">
         <i class="bi bi-person-x display-4 text-muted"></i>
         <h5 class="mt-3">No Participants Yet</h5>
-        <p class="text-muted mb-0">Upload PDFs first, then import students via bulk upload or add them individually.</p>
+        <p class="text-muted mb-0">Upload a template first, then import students via bulk upload or add them
+            individually.</p>
     </div>
     {% endif %}
 </div>
@@ -267,9 +264,9 @@
     }
 </script>
 
-<!-- Delete Event Modal (with password verification) -->
+<!-- Delete Event Modal -->
 <div class="modal fade" id="deleteEventModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Delete Event</h5>
@@ -286,7 +283,7 @@
                         This will permanently delete:
                     <ul>
                         <li>{{ event.participant_count }} participant(s)</li>
-                        <li>All associated certificate PDF files</li>
+                        <li>All associated certificate files</li>
                         <li>All download history</li>
                     </ul>
                     </p>

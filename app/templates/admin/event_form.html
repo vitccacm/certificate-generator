@@ -1,22 +1,35 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
 {% block title %}{{ 'Edit Event' if event else 'New Event' }} - Certificate Portal{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        {% if event %}
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.event_detail', event_id=event.id) }}">{{ event.name
+                }}</a></li>
+        <li class="breadcrumb-item active">Edit</li>
+        {% else %}
+        <li class="breadcrumb-item active">New Event</li>
+        {% endif %}
+    </ol>
+</nav>
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
-        <!-- Back Link -->
-        <a href="{{ url_for('admin.event_detail', event_id=event.id) if event else url_for('admin.dashboard') }}"
-            class="btn btn-link text-decoration-none mb-3 animate-in">
-            <i class="bi bi-arrow-left"></i> Back
-        </a>
+        <!-- Page Header -->
+        <div class="page-header d-flex justify-content-between align-items-center mb-4">
+            <h1>{{ 'Edit Event' if event else 'Create Event' }}</h1>
+            <a href="{{ url_for('admin.event_detail', event_id=event.id) if event else url_for('admin.dashboard') }}"
+                class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
 
-        <div class="glass-card p-4 animate-in delay-1">
-            <h4 class="fw-bold mb-4">
-                <i class="bi bi-{{ 'pencil' if event else 'plus-circle' }} text-gradient"></i>
-                {{ 'Edit Event' if event else 'Create New Event' }}
-            </h4>
-
+        <div class="glass-card p-4">
             <form method="POST"
                 action="{{ url_for('admin.edit_event', event_id=event.id) if event else url_for('admin.new_event') }}">
 

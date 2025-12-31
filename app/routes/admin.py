@@ -13,7 +13,6 @@ from app.routes.auth import login_required
 from app.utils.helpers import (allowed_file, allowed_bulk_file, allowed_template_file,
                                 secure_filename_custom, validate_email,
                                 generate_unique_filename)
-from app.utils.certificate_generator import get_template_preview_image
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -378,13 +377,13 @@ def delete_event(event_id):
     return redirect(url_for('admin.dashboard'))
 
 
-# ==================== PDF UPLOAD (Multiple) ====================
+# ==================== IMAGE UPLOAD (Multiple) ====================
 
 @admin_bp.route('/events/<int:event_id>/upload-pdfs', methods=['POST'])
 @login_required
 def upload_pdfs(event_id):
     """
-    Upload multiple PDF certificates to the certificates folder.
+    Upload multiple PNG certificates to the certificates folder.
     """
     event = Event.query.get_or_404(event_id)
     
@@ -401,7 +400,7 @@ def upload_pdfs(event_id):
             continue
         
         if not allowed_file(file.filename):
-            errors.append(f'{file.filename}: Not a PDF file')
+            errors.append(f'{file.filename}: Not a PNG file')
             continue
         
         # Save with secure filename
@@ -428,7 +427,7 @@ def upload_pdfs(event_id):
             ip_address=request.remote_addr
         )
         db.session.commit()
-        flash(f'Successfully uploaded {uploaded_count} PDF file(s).', 'success')
+        flash(f'Successfully uploaded {uploaded_count} image file(s).', 'success')
     
     if errors:
         for error in errors[:5]:  # Show max 5 errors
@@ -446,7 +445,7 @@ def new_participant(event_id):
     Add a new participant.
     Supports two modes:
     - 'pool': Add to certificate pool (uses template, no certificate upload)
-    - 'custom': Upload custom certificate PDF
+    - 'custom': Upload custom certificate PNG
     """
     event = Event.query.get_or_404(event_id)
     mode = request.args.get('mode', 'pool')  # Default to pool mode
@@ -485,7 +484,7 @@ def new_participant(event_id):
                 return render_template('admin/participant_form.html', event=event, participant=None, mode=mode)
             
             if not allowed_file(file.filename):
-                flash('Only PDF files are allowed.', 'error')
+                flash('Only PNG files are allowed.', 'error')
                 return render_template('admin/participant_form.html', event=event, participant=None, mode=mode)
             
             # Save certificate file
@@ -553,7 +552,7 @@ def edit_participant(participant_id):
             file = request.files['certificate']
             if file.filename != '':
                 if not allowed_file(file.filename):
-                    flash('Only PDF files are allowed.', 'error')
+                    flash('Only PNG files are allowed.', 'error')
                     return render_template('admin/participant_form.html', event=event, participant=participant)
                 
                 # Delete old file
@@ -857,7 +856,7 @@ def configure_template(event_id):
 @login_required
 def upload_template(event_id):
     """
-    Upload a PDF template for an event.
+    Upload a PNG template for an event.
     """
     event = Event.query.get_or_404(event_id)
     
@@ -871,7 +870,7 @@ def upload_template(event_id):
         return redirect(url_for('admin.configure_template', event_id=event_id))
     
     if not allowed_template_file(file.filename):
-        flash('Only PDF files are allowed for templates.', 'error')
+        flash('Only PNG files are allowed for templates.', 'error')
         return redirect(url_for('admin.configure_template', event_id=event_id))
     
     # Delete old template if exists
@@ -917,7 +916,7 @@ def upload_template(event_id):
 @login_required
 def template_preview(event_id):
     """
-    Serve the template preview image.
+    Serve the template image directly for preview.
     """
     event = Event.query.get_or_404(event_id)
     
@@ -929,13 +928,12 @@ def template_preview(event_id):
     if not os.path.exists(template_path):
         return Response('Template not found', status=404)
     
-    # Generate preview image
-    preview_bytes = get_template_preview_image(template_path, max_width=1200)
-    
-    if preview_bytes is None:
-        return Response('Could not generate preview', status=500)
-    
-    return Response(preview_bytes, mimetype='image/png')
+    # Serve the image directly for preview
+    from flask import send_file
+    return send_file(
+        template_path,
+        mimetype='image/png'
+    )
 
 
 @admin_bp.route('/events/<int:event_id>/delete-template', methods=['POST'])
