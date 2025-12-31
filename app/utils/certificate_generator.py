@@ -44,17 +44,20 @@ def get_font(font_name, font_size):
     font_info = AVAILABLE_FONTS.get(font_name.lower(), AVAILABLE_FONTS['arial'])
     font_files = font_info[1]
     
-    # Check bundled fonts FIRST
+    # Check bundled fonts FIRST (and let Pillow fallback search if path fails)
     for filename in font_files:
         path = os.path.join(_BUNDLED_FONTS_DIR, filename)
-        if os.path.exists(path):
+        try:
+            # removing exists check because Pillow might find it in system paths even if path is wrong
+            return ImageFont.truetype(filename, font_size) 
+        except Exception:
             try:
-                logging.info(f"Loading bundled font: {path}")
+                # Try full path
                 return ImageFont.truetype(path, font_size)
-            except Exception as e:
-                logging.error(f"Failed to load bundled font {path}: {e}")
+            except Exception:
+                continue
 
-    # Fallback to system fonts
+    # Fallback to system fonts explicit paths
     system_paths = [
         '/usr/share/fonts/truetype/dejavu/',
         '/usr/share/fonts/truetype/',
