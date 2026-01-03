@@ -69,6 +69,15 @@ class Event(db.Model):
     font_color = db.Column(db.String(20), default='#000000')  # Hex color for name
     font_name = db.Column(db.String(50), default='helv')  # Font name for certificate
     
+    # Protected event fields (signed URL access only)
+    is_protected = db.Column(db.Boolean, default=False)
+    access_token = db.Column(db.String(64), nullable=True)
+    
+    # Archived event fields
+    is_archived = db.Column(db.Boolean, default=False)
+    show_in_archive = db.Column(db.Boolean, default=False)
+    archived_at = db.Column(db.DateTime, nullable=True)
+    
     # Relationship to participants
     participants = db.relationship('Participant', backref='event', lazy='dynamic',
                                    cascade='all, delete-orphan')
@@ -90,6 +99,18 @@ class Event(db.Model):
     def total_downloads(self):
         """Get total downloads across all participants"""
         return sum(p.download_count for p in self.participants)
+    
+    def generate_access_token(self):
+        """Generate a new access token for protected events"""
+        import secrets
+        self.access_token = secrets.token_hex(32)
+        return self.access_token
+    
+    def get_signed_url(self, base_url=''):
+        """Get the signed URL for protected event access"""
+        if not self.is_protected or not self.access_token:
+            return None
+        return f"{base_url}/event/{self.id}?token={self.access_token}"
 
 
 class Participant(db.Model):

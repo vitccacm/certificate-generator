@@ -48,15 +48,22 @@ def dashboard():
 def list_events():
     """
     List all events page (both visible and hidden).
+    Archived events are sorted to the bottom.
     """
-    events = Event.query.order_by(Event.created_at.desc()).all()
-    visible_count = sum(1 for e in events if e.is_visible)
-    hidden_count = len(events) - visible_count
+    # Sort: non-archived first (by created_at desc), then archived (by archived_at desc)
+    active_events = Event.query.filter_by(is_archived=False).order_by(Event.created_at.desc()).all()
+    archived_events = Event.query.filter_by(is_archived=True).order_by(Event.archived_at.desc()).all()
+    events = active_events + archived_events
+    
+    visible_count = sum(1 for e in events if e.is_visible and not e.is_archived)
+    hidden_count = sum(1 for e in events if not e.is_visible and not e.is_archived)
+    archived_count = len(archived_events)
     
     return render_template('admin/events.html',
                          events=events,
                          visible_count=visible_count,
-                         hidden_count=hidden_count)
+                         hidden_count=hidden_count,
+                         archived_count=archived_count)
 
 
 # ==================== ADMIN MANAGEMENT ====================
@@ -240,6 +247,7 @@ def new_event():
         description = request.form.get('description', '').strip()
         event_date_str = request.form.get('event_date', '').strip()
         is_visible = request.form.get('is_visible') == 'on'
+        is_protected = request.form.get('is_protected') == 'on'
         
         if not name:
             flash('Event name is required.', 'error')
@@ -254,13 +262,19 @@ def new_event():
                 flash('Invalid date format.', 'error')
                 return render_template('admin/event_form.html', event=None)
         
-        event = Event(name=name, description=description, event_date=event_date, is_visible=is_visible)
+        event = Event(name=name, description=description, event_date=event_date, 
+                     is_visible=is_visible, is_protected=is_protected)
+        
+        # Generate access token for protected events
+        if is_protected:
+            event.generate_access_token()
+        
         db.session.add(event)
         
         log_admin_action(
             admin_id=session.get('admin_id'),
             action='create_event',
-            details=f'Created event: {name}',
+            details=f'Created event: {name} (protected: {is_protected})',
             ip_address=request.remote_addr
         )
         db.session.commit()
@@ -289,6 +303,11 @@ def edit_event(event_id):
     Edit an existing event.
     """
     event = Event.query.get_or_404(event_id)
+    
+    # Block editing of archived events
+    if event.is_archived:
+        flash('Archived events cannot be edited.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
     
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
@@ -335,6 +354,12 @@ def toggle_event(event_id):
     Toggle event visibility.
     """
     event = Event.query.get_or_404(event_id)
+    
+    # Block toggling archived events
+    if event.is_archived:
+        flash('Archived events cannot be modified.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event.is_visible = not event.is_visible
     
     status = 'visible' if event.is_visible else 'hidden'
@@ -350,6 +375,66 @@ def toggle_event(event_id):
     return redirect(url_for('admin.event_detail', event_id=event.id))
 
 
+@admin_bp.route('/events/<int:event_id>/archive', methods=['POST'])
+@login_required
+def archive_event(event_id):
+    """
+    Archive an event. Archived events cannot be edited and downloads are disabled.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    if event.is_archived:
+        flash('Event is already archived.', 'warning')
+        return redirect(url_for('admin.event_detail', event_id=event.id))
+    
+    # Get visibility setting for homepage archive section
+    show_in_archive = request.form.get('show_in_archive') == 'on'
+    
+    event.is_archived = True
+    event.is_visible = False  # Archived events are hidden from main listing
+    event.show_in_archive = show_in_archive  # Controls visibility in "Archived Events" section
+    event.archived_at = datetime.utcnow()
+    
+    log_admin_action(
+        admin_id=session.get('admin_id'),
+        action='archive_event',
+        details=f'Archived event: {event.name} (show_in_archive: {show_in_archive})',
+        ip_address=request.remote_addr
+    )
+    db.session.commit()
+    
+    flash(f'Event "{event.name}" has been archived.', 'success')
+    return redirect(url_for('admin.event_detail', event_id=event.id))
+
+
+@admin_bp.route('/events/<int:event_id>/unarchive', methods=['POST'])
+@login_required
+def unarchive_event(event_id):
+    """
+    Unarchive an event. Restores the ability to edit the event.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    if not event.is_archived:
+        flash('Event is not archived.', 'warning')
+        return redirect(url_for('admin.event_detail', event_id=event.id))
+    
+    event.is_archived = False
+    event.show_in_archive = False
+    event.archived_at = None
+    
+    log_admin_action(
+        admin_id=session.get('admin_id'),
+        action='unarchive_event',
+        details=f'Unarchived event: {event.name}',
+        ip_address=request.remote_addr
+    )
+    db.session.commit()
+    
+    flash(f'Event "{event.name}" has been unarchived and is now editable.', 'success')
+    return redirect(url_for('admin.event_detail', event_id=event.id))
+
+
 @admin_bp.route('/events/<int:event_id>/delete', methods=['POST'])
 @login_required
 def delete_event(event_id):
@@ -359,6 +444,11 @@ def delete_event(event_id):
     event = Event.query.get_or_404(event_id)
     admin_id = session.get('admin_id')
     admin = Admin.query.get_or_404(admin_id)
+    
+    # Block deletion of archived events
+    if event.is_archived:
+        flash('Archived events cannot be deleted.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
     
     # Verify admin password
     password = request.form.get('admin_password', '')
@@ -465,6 +555,12 @@ def new_participant(event_id):
     - 'custom': Upload custom certificate PNG
     """
     event = Event.query.get_or_404(event_id)
+    
+    # Block adding participants to archived events
+    if event.is_archived:
+        flash('Cannot add participants to archived events.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     mode = request.args.get('mode', 'pool')  # Default to pool mode
     
     if request.method == 'POST':
@@ -543,6 +639,11 @@ def edit_participant(participant_id):
     participant = Participant.query.get_or_404(participant_id)
     event = participant.event
     
+    # Block editing participants of archived events
+    if event.is_archived:
+        flash('Cannot edit participants of archived events.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event.id))
+    
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip().lower()
@@ -609,9 +710,15 @@ def delete_participant(participant_id):
     Delete a participant and their certificate (if custom).
     """
     participant = Participant.query.get_or_404(participant_id)
+    event = participant.event
     event_id = participant.event_id
     name = participant.name
     email = participant.email
+    
+    # Block deleting participants of archived events
+    if event.is_archived:
+        flash('Cannot delete participants of archived events.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
     
     # Delete certificate file only if it's a custom certificate
     if participant.certificate_filename:
@@ -631,6 +738,57 @@ def delete_participant(participant_id):
     db.session.commit()
     
     flash(f'Participant "{name}" deleted.', 'success')
+    return redirect(url_for('admin.event_detail', event_id=event_id))
+
+
+@admin_bp.route('/events/<int:event_id>/participants/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete_participants(event_id):
+    """
+    Bulk delete multiple participants.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # Block bulk delete for archived events
+    if event.is_archived:
+        flash('Cannot delete participants of archived events.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
+    # Get selected participant IDs from form
+    participant_ids = request.form.getlist('participant_ids')
+    
+    if not participant_ids:
+        flash('No participants selected for deletion.', 'warning')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
+    deleted_count = 0
+    for pid in participant_ids:
+        try:
+            participant = Participant.query.get(int(pid))
+            if participant and participant.event_id == event_id:
+                # Delete certificate file if custom
+                if participant.certificate_filename:
+                    cert_path = os.path.join(current_app.config['CERTIFICATES_FOLDER'], 
+                                            participant.certificate_filename)
+                    if os.path.exists(cert_path):
+                        os.remove(cert_path)
+                db.session.delete(participant)
+                deleted_count += 1
+        except (ValueError, TypeError):
+            continue
+    
+    if deleted_count > 0:
+        log_admin_action(
+            admin_id=session.get('admin_id'),
+            action='bulk_delete_participants',
+            details=f'Bulk deleted {deleted_count} participants from event: {event.name}',
+            ip_address=request.remote_addr
+        )
+        db.session.commit()
+        flash(f'Successfully deleted {deleted_count} participant(s).', 'success')
+    else:
+        flash('No participants were deleted.', 'warning')
+    
     return redirect(url_for('admin.event_detail', event_id=event_id))
 
 

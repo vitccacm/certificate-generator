@@ -5,7 +5,7 @@ Includes CAPTCHA validation for download requests.
 import os
 import io
 from flask import (Blueprint, render_template, request, redirect, url_for, 
-                   flash, current_app, send_file, session, Response)
+                   flash, current_app, send_file, session, Response, abort)
 from app.models import db, Event, Participant
 from app.utils.captcha import get_captcha_question, validate_captcha
 from app.utils.helpers import validate_email, sanitize_email
@@ -18,19 +18,51 @@ public_bp = Blueprint('public', __name__)
 def index():
     """
     Public landing page showing all visible events as cards.
+    Protected events are excluded. Archived events shown separately.
     """
-    # Get only visible events for display
-    events = Event.query.filter_by(is_visible=True).order_by(Event.created_at.desc()).all()
-    return render_template('public/index.html', events=events)
+    # Get only visible, non-protected, non-archived events for main display
+    events = Event.query.filter_by(
+        is_visible=True, 
+        is_protected=False,
+        is_archived=False
+    ).order_by(Event.created_at.desc()).all()
+    
+    # Get archived events that should be shown on homepage
+    archived_events = Event.query.filter_by(
+        is_archived=True,
+        show_in_archive=True
+    ).order_by(Event.archived_at.desc()).all()
+    
+    return render_template('public/index.html', events=events, archived_events=archived_events)
 
 
 @public_bp.route('/event/<int:event_id>', methods=['GET', 'POST'])
 def download_page(event_id):
     """
     Event-specific download page with CAPTCHA.
+    Protected events require valid access token.
+    Archived events with show_in_archive show a message that downloads are disabled.
     """
-    # Verify event exists and is visible
-    event = Event.query.filter_by(id=event_id, is_visible=True).first_or_404()
+    event = Event.query.get_or_404(event_id)
+    
+    # Archived events with show_in_archive can be viewed but not downloaded
+    if event.is_archived:
+        if event.show_in_archive:
+            # Show archived message page
+            return render_template('public/download.html', event=event, 
+                                 captcha_question=None, archived_no_download=True)
+        else:
+            abort(404)  # Not visible at all
+    
+    # Check visibility - event must be visible
+    if not event.is_visible:
+        abort(404)
+    
+    # Check if protected event - require valid token
+    if event.is_protected:
+        token = request.args.get('token', '')
+        if not token or token != event.access_token:
+            abort(404)  # Don't reveal that the event exists
     
     if request.method == 'POST':
         email = request.form.get('email', '').strip()

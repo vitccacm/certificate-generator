@@ -33,17 +33,93 @@
             {% endif %}
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }} fs-6 px-3 py-2">
             <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }}"></i>
             {{ 'Visible' if event.is_visible else 'Hidden' }}
         </span>
+        {% if event.is_protected %}
+        <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+            <i class="bi bi-shield-lock"></i> Protected
+        </span>
+        {% endif %}
+        {% if event.is_archived %}
+        <span class="badge bg-dark fs-6 px-3 py-2">
+            <i class="bi bi-archive"></i> Archived
+        </span>
+        {% endif %}
     </div>
 </div>
+
+{% if event.is_protected and event.access_token %}
+<!-- Protected Event URL -->
+<div class="glass-card p-3 mb-4">
+    <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-shield-lock text-warning fs-4"></i>
+            <div>
+                <strong>Protected Event Link</strong>
+                <small class="text-muted d-block">Share this URL to grant access to this event</small>
+            </div>
+        </div>
+        <button type="button" class="btn btn-warning" onclick="copyProtectedUrl()">
+            <i class="bi bi-clipboard"></i> Copy Link
+        </button>
+    </div>
+    <div class="mt-2">
+        <input type="text" class="form-control form-control-sm" id="protectedUrl"
+            value="{{ request.host_url.rstrip('/') }}/event/{{ event.id }}?token={{ event.access_token }}" readonly
+            style="font-family: monospace; font-size: 0.85em;">
+    </div>
+</div>
+<script>
+    function copyProtectedUrl() {
+        const input = document.getElementById('protectedUrl');
+        input.select();
+        input.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(input.value);
+        // Show feedback
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        btn.classList.remove('btn-warning');
+        btn.classList.add('btn-success');
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-warning');
+        }, 2000);
+    }
+</script>
+{% endif %}
+
+{% if event.is_archived %}
+<!-- Archived Notice -->
+<div class="alert alert-secondary mb-4">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-archive fs-4 me-3"></i>
+        <div class="flex-grow-1">
+            <strong>This event is archived</strong>
+            <p class="mb-0 small">Archived on {{ event.archived_at.strftime('%B %d, %Y at %H:%M') if event.archived_at
+                else 'N/A' }}. Settings are locked and certificate downloads are disabled.</p>
+        </div>
+        {% if event.show_in_archive %}
+        <span class="badge bg-success ms-2" title="Visible in public 'Archived Events' section">
+            <i class="bi bi-globe me-1"></i>Public Archive
+        </span>
+        {% else %}
+        <span class="badge bg-secondary ms-2" title="Not visible to the public">
+            <i class="bi bi-eye-slash me-1"></i>Private
+        </span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 <!-- Event Actions -->
 <div class="glass-card p-3 mb-4">
     <div class="d-flex flex-wrap gap-2">
+        {% if not event.is_archived %}
         <a href="{{ url_for('admin.edit_event', event_id=event.id) }}" class="btn btn-outline-primary">
             <i class="bi bi-pencil"></i> Edit Event
         </a>
@@ -53,14 +129,26 @@
                 {{ 'Hide Event' if event.is_visible else 'Show Event' }}
             </button>
         </form>
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+            data-bs-target="#archiveEventModal">
+            <i class="bi bi-archive"></i> Archive Event
+        </button>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteEventModal">
             <i class="bi bi-trash"></i> Delete Event
         </button>
+        {% else %}
+        <form action="{{ url_for('admin.unarchive_event', event_id=event.id) }}" method="POST" class="d-inline">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-archive"></i> Unarchive Event
+            </button>
+        </form>
+        <span class="text-muted ms-3"><i class="bi bi-lock"></i> Event is archived - other options are disabled</span>
+        {% endif %}
     </div>
 </div>
 
 <!-- Certificate Template Configuration -->
-<div class="glass-card p-4 mb-4">
+<div class="glass-card p-4 mb-4 {{ 'opacity-50' if event.is_archived else '' }}">
     <div class="d-flex justify-content-between align-items-center">
         <div>
             <h5 class="fw-semibold mb-1">
@@ -79,9 +167,15 @@
                 {% endif %}
             </p>
         </div>
+        {% if not event.is_archived %}
         <a href="{{ url_for('admin.configure_template', event_id=event.id) }}" class="btn btn-gradient">
             <i class="bi bi-gear"></i> Configure Template
         </a>
+        {% else %}
+        <button class="btn btn-secondary" disabled>
+            <i class="bi bi-lock"></i> Locked
+        </button>
+        {% endif %}
     </div>
 
     {% if event.has_template and event.name_position_x is not none %}
@@ -116,12 +210,19 @@
                 Upload CSV/Excel with columns: <strong>name, email</strong>
             </p>
         </div>
+        {% if not event.is_archived %}
         <a href="{{ url_for('admin.bulk_upload', event_id=event.id) }}" class="btn btn-outline-success">
             <i class="bi bi-upload"></i> Bulk Upload
         </a>
+        {% else %}
+        <button class="btn btn-secondary" disabled>
+            <i class="bi bi-lock"></i> Locked
+        </button>
+        {% endif %}
     </div>
 </div>
 
+{% if not event.is_archived %}
 <!-- Add Single Participant -->
 <div class="glass-card p-4 mb-4">
     <h5 class="fw-semibold mb-3">
@@ -162,71 +263,105 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Participants Table -->
 <div class="glass-card">
-    <div class="p-4 border-bottom">
+    <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
         <h5 class="fw-semibold mb-0">
             <i class="bi bi-people"></i> Participants ({{ participants|length }})
         </h5>
+        {% if participants and not event.is_archived %}
+        <button type="button" class="btn btn-outline-danger btn-sm" id="toggleBulkDelete">
+            <i class="bi bi-trash"></i> Bulk Delete
+        </button>
+        {% endif %}
     </div>
 
     {% if participants %}
-    <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Certificate</th>
-                    <th class="text-center">Downloads</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for participant in participants %}
-                <tr>
-                    <td>{{ loop.index }}</td>
-                    <td><strong>{{ participant.name }}</strong></td>
-                    <td>
-                        <a href="mailto:{{ participant.email }}" class="text-decoration-none small">
-                            {{ participant.email }}
-                        </a>
-                    </td>
-                    <td>
-                        {% if participant.certificate_filename %}
-                        <small class="text-muted" title="{{ participant.certificate_filename }}">
-                            <i class="bi bi-image text-primary"></i>
-                            {{ participant.certificate_filename[:25] + '...' if participant.certificate_filename|length
-                            > 25 else participant.certificate_filename }}
-                            <span class="badge bg-warning text-dark">Custom</span>
-                        </small>
-                        {% else %}
-                        <small class="text-success">
-                            <i class="bi bi-magic"></i> Auto-generated
-                        </small>
+    <form id="bulkDeleteForm" action="{{ url_for('admin.bulk_delete_participants', event_id=event.id) }}" method="POST">
+        <!-- Bulk delete controls (hidden by default) -->
+        <div class="p-3 bg-danger bg-opacity-10 border-bottom d-none" id="bulkDeleteControls">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()">
+                    <label class="form-check-label ms-2" for="selectAll">Select All</label>
+                    <span class="ms-3 text-muted" id="selectedCount">0 selected</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger btn-sm" id="confirmBulkDelete" disabled>
+                        <i class="bi bi-trash"></i> Delete Selected
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="cancelBulkDelete()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="d-none bulk-checkbox-col" style="width: 40px;"></th>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Certificate</th>
+                        <th class="text-center">Downloads</th>
+                        {% if not event.is_archived %}
+                        <th class="text-end">Actions</th>
                         {% endif %}
-                    </td>
-                    <td class="text-center">
-                        <span class="badge bg-info">{{ participant.download_count }}</span>
-                    </td>
-                    <td class="text-end">
-                        <div class="btn-group btn-group-sm" id="actions-{{ participant.id }}">
-                            <a href="{{ url_for('admin.edit_participant', participant_id=participant.id) }}"
-                                class="btn btn-outline-secondary" title="Edit">
-                                <i class="bi bi-pencil"></i>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for participant in participants %}
+                    <tr>
+                        <td class="d-none bulk-checkbox-col">
+                            <input type="checkbox" class="form-check-input participant-checkbox" name="participant_ids"
+                                value="{{ participant.id }}" onchange="updateSelectedCount()">
+                        </td>
+                        <td>{{ loop.index }}</td>
+                        <td><strong>{{ participant.name }}</strong></td>
+                        <td>
+                            <a href="mailto:{{ participant.email }}" class="text-decoration-none small">
+                                {{ participant.email }}
                             </a>
-                            <button type="button" class="btn btn-outline-danger" title="Delete"
-                                onclick="showDeleteConfirm({{ participant.id }})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                        <div class="d-none" id="confirm-{{ participant.id }}">
-                            <form action="{{ url_for('admin.delete_participant', participant_id=participant.id) }}"
-                                method="POST" class="d-inline">
+                        </td>
+                        <td>
+                            {% if participant.certificate_filename %}
+                            <small class="text-muted" title="{{ participant.certificate_filename }}">
+                                <i class="bi bi-image text-primary"></i>
+                                {{ participant.certificate_filename[:25] + '...' if
+                                participant.certificate_filename|length
+                                > 25 else participant.certificate_filename }}
+                                <span class="badge bg-warning text-dark">Custom</span>
+                            </small>
+                            {% else %}
+                            <small class="text-success">
+                                <i class="bi bi-magic"></i> Auto-generated
+                            </small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ participant.download_count }}</span>
+                        </td>
+                        {% if not event.is_archived %}
+                        <td class="text-end participant-actions">
+                            <div class="btn-group btn-group-sm" id="actions-{{ participant.id }}">
+                                <a href="{{ url_for('admin.edit_participant', participant_id=participant.id) }}"
+                                    class="btn btn-outline-secondary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" title="Delete"
+                                    onclick="showDeleteConfirm({{ participant.id }})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            <div class="d-none" id="confirm-{{ participant.id }}">
                                 <div class="btn-group btn-group-sm">
-                                    <button type="submit" class="btn btn-danger" title="Confirm Delete">
+                                    <button type="button" class="btn btn-danger" title="Confirm Delete"
+                                        onclick="deleteSingleParticipant({{ participant.id }})">
                                         <i class="bi bi-check-lg"></i> Yes
                                     </button>
                                     <button type="button" class="btn btn-secondary" title="Cancel"
@@ -234,14 +369,15 @@
                                         <i class="bi bi-x-lg"></i> No
                                     </button>
                                 </div>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
     {% else %}
     <div class="p-5 text-center">
         <i class="bi bi-person-x display-4 text-muted"></i>
@@ -253,6 +389,7 @@
 </div>
 
 <script>
+    // Single participant delete
     function showDeleteConfirm(id) {
         document.getElementById('actions-' + id).classList.add('d-none');
         document.getElementById('confirm-' + id).classList.remove('d-none');
@@ -261,6 +398,70 @@
     function hideDeleteConfirm(id) {
         document.getElementById('confirm-' + id).classList.add('d-none');
         document.getElementById('actions-' + id).classList.remove('d-none');
+    }
+
+    function deleteSingleParticipant(id) {
+        // Create a temporary form for single delete
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/participants/' + id + '/delete';
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // Bulk delete functionality
+    const toggleBtn = document.getElementById('toggleBulkDelete');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function () {
+            const controls = document.getElementById('bulkDeleteControls');
+            const checkboxCols = document.querySelectorAll('.bulk-checkbox-col');
+            const actionsCols = document.querySelectorAll('.participant-actions');
+
+            controls.classList.toggle('d-none');
+            checkboxCols.forEach(col => col.classList.toggle('d-none'));
+            actionsCols.forEach(col => col.classList.toggle('d-none'));
+
+            // Reset all checkboxes when entering bulk mode
+            document.querySelectorAll('.participant-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateSelectedCount();
+        });
+    }
+
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.participant-checkbox');
+        checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
+        const countSpan = document.getElementById('selectedCount');
+        const deleteBtn = document.getElementById('confirmBulkDelete');
+
+        countSpan.textContent = checkboxes.length + ' selected';
+        deleteBtn.disabled = checkboxes.length === 0;
+
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.participant-checkbox');
+        const selectAll = document.getElementById('selectAll');
+        selectAll.checked = checkboxes.length === allCheckboxes.length && allCheckboxes.length > 0;
+    }
+
+    function cancelBulkDelete() {
+        const controls = document.getElementById('bulkDeleteControls');
+        const checkboxCols = document.querySelectorAll('.bulk-checkbox-col');
+        const actionsCols = document.querySelectorAll('.participant-actions');
+
+        controls.classList.add('d-none');
+        checkboxCols.forEach(col => col.classList.add('d-none'));
+        actionsCols.forEach(col => col.classList.remove('d-none'));
+
+        // Reset checkboxes
+        document.querySelectorAll('.participant-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('selectAll').checked = false;
+        updateSelectedCount();
     }
 </script>
 
@@ -298,6 +499,49 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-danger">
                         <i class="bi bi-trash"></i> Delete Event
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Archive Event Modal -->
+<div class="modal fade" id="archiveEventModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-archive me-2"></i>Archive Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.archive_event', event_id=event.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Note:</strong> Archived events cannot be edited or deleted.
+                    </div>
+                    <p>You are about to archive <strong>{{ event.name }}</strong>.</p>
+                    <p class="text-muted small">
+                        Archiving an event locks all settings and prevents further modifications.
+                        Participants can still download their certificates.
+                    </p>
+                    <hr>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="show_in_archive" name="show_in_archive"
+                            style="width: 3em; height: 1.5em;">
+                        <label class="form-check-label ms-2" for="show_in_archive">
+                            Show in "Archived Events" section on homepage
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        If enabled, this event will appear in a separate "Archived Events" section on the public
+                        homepage.
+                    </small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-archive"></i> Archive Event
                     </button>
                 </div>
             </form>

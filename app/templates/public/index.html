@@ -63,4 +63,49 @@
     </div>
     {% endif %}
 </section>
+
+{% if archived_events %}
+<!-- Archived Events Section -->
+<section class="events-section mt-5">
+    <div class="section-header animate-in delay-1">
+        <h2><i class="bi bi-archive"></i> Archived Events</h2>
+        <div class="line"></div>
+    </div>
+
+    <div class="row g-4">
+        {% for event in archived_events %}
+        <div class="col-md-6 col-lg-4 animate-in delay-{{ loop.index % 4 + 1 }}">
+            <a href="{{ url_for('public.download_page', event_id=event.id) }}" class="text-decoration-none">
+                <div class="event-card" style="opacity: 0.85;">
+                    <div class="event-icon" style="background: var(--gradient-secondary);">
+                        <i class="bi bi-archive"></i>
+                    </div>
+                    <div class="event-date">
+                        <i class="bi bi-calendar3"></i>
+                        {% if event.event_date %}
+                        {{ event.event_date.strftime('%B %d, %Y') }}
+                        {% else %}
+                        {{ event.created_at.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </div>
+                    <h5 class="mt-2">{{ event.name }}</h5>
+                    {% if event.description %}
+                    <p class="event-description">
+                        {{ event.description[:100] }}{% if event.description|length > 100 %}...{% endif %}
+                    </p>
+                    {% else %}
+                    <p class="event-description text-muted">
+                        Click to download your certificate
+                    </p>
+                    {% endif %}
+                    <div class="arrow-icon">
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 {% endblock %}
