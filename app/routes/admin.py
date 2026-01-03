@@ -27,8 +27,8 @@ def dashboard():
     total_participants = Participant.query.count()
     total_downloads = db.session.query(db.func.sum(Participant.download_count)).scalar() or 0
     
-    # All events for listing
-    events = Event.query.order_by(Event.created_at.desc()).all()
+    # Only visible events for dashboard listing
+    visible_events = Event.query.filter_by(is_visible=True).order_by(Event.created_at.desc()).all()
     
     # Recent downloads
     recent_downloads = DownloadLog.query.order_by(
@@ -39,8 +39,24 @@ def dashboard():
                          total_events=total_events,
                          total_participants=total_participants,
                          total_downloads=total_downloads,
-                         events=events,
+                         events=visible_events,
                          recent_downloads=recent_downloads)
+
+
+@admin_bp.route('/events')
+@login_required
+def list_events():
+    """
+    List all events page (both visible and hidden).
+    """
+    events = Event.query.order_by(Event.created_at.desc()).all()
+    visible_count = sum(1 for e in events if e.is_visible)
+    hidden_count = len(events) - visible_count
+    
+    return render_template('admin/events.html',
+                         events=events,
+                         visible_count=visible_count,
+                         hidden_count=hidden_count)
 
 
 # ==================== ADMIN MANAGEMENT ====================

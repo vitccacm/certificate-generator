@@ -1,0 +1,111 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}All Events - Certificate Portal{% endblock %}
+
+{% block breadcrumb %}
+<span>All Events</span>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1>All Events</h1>
+    <p>Manage all events including hidden ones</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="opacity-75 mb-1">Total Events</p>
+                    <h3>{{ events|length }}</h3>
+                </div>
+                <i class="bi bi-calendar-event fs-2 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="stat-card success">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="opacity-75 mb-1">Visible Events</p>
+                    <h3>{{ visible_count }}</h3>
+                </div>
+                <i class="bi bi-eye fs-2 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="stat-card secondary">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="opacity-75 mb-1">Hidden Events</p>
+                    <h3>{{ hidden_count }}</h3>
+                </div>
+                <i class="bi bi-eye-slash fs-2 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Events Section -->
+<div class="glass-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2"></i>All Events</h5>
+        <a href="{{ url_for('admin.new_event') }}" class="btn btn-gradient btn-sm">
+            <i class="bi bi-plus"></i> New Event
+        </a>
+    </div>
+    {% if events %}
+    <div class="row g-3">
+        {% for event in events %}
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-decoration-none">
+                <div class="event-card h-100">
+                    <div class="event-card-header">
+                        <h6 class="event-card-title mb-0">{{ event.name }}</h6>
+                        <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }} ms-2">
+                            <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }} me-1"></i>{{ 'Visible' if
+                            event.is_visible else 'Hidden' }}
+                        </span>
+                    </div>
+                    {% if event.description %}
+                    <p class="event-card-description text-muted small mb-3">{{ event.description[:80] }}{% if
+                        event.description|length > 80 %}...{% endif %}</p>
+                    {% endif %}
+                    <div class="event-card-stats">
+                        <div class="event-stat">
+                            <i class="bi bi-people-fill text-primary"></i>
+                            <span>{{ event.participant_count }}</span>
+                            <small class="text-muted">Participants</small>
+                        </div>
+                        <div class="event-stat">
+                            <i class="bi bi-download text-success"></i>
+                            <span>{{ event.total_downloads }}</span>
+                            <small class="text-muted">Downloads</small>
+                        </div>
+                    </div>
+                    {% if event.event_date %}
+                    <div class="event-card-footer">
+                        <small class="text-muted">
+                            <i class="bi bi-calendar3 me-1"></i>{{ event.event_date.strftime('%b %d, %Y') }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-calendar-x display-4 text-muted"></i>
+        <p class="text-muted mt-3 mb-0">No events yet. Create your first event!</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

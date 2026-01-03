@@ -444,6 +444,13 @@ main {
     color: inherit;
 }
 
+.brand-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    object-fit: contain;
+}
+
 .brand-icon {
     width: 40px;
     height: 40px;
