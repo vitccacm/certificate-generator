@@ -801,3 +801,71 @@ main {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
 }
+
+/* ===== Admin Dashboard Event Cards ===== */
+.event-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.event-card-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--bs-body-color);
+    flex: 1;
+    line-height: 1.4;
+}
+
+.event-card-description {
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+.event-card-stats {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--glass-border);
+    margin-top: auto;
+}
+
+.event-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.event-stat i {
+    font-size: 1.25rem;
+}
+
+.event-stat span {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+}
+
+.event-stat small {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.event-card-footer {
+    padding-top: 0.75rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--glass-border);
+}
+
+/* Prevent glass-card hover effect on the parent wrapper */
+.glass-card:has(.event-card) {
+    transition: none;
+}
+
+.glass-card:has(.event-card):hover {
+    transform: none;
+    box-shadow: var(--shadow-md);
+}

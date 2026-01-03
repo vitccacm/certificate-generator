@@ -53,51 +53,68 @@
 </div>
 
 <div class="row g-4">
-    <!-- Events List -->
-    <div class="col-lg-7">
-        <div class="glass-card p-4 h-100">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2"></i>Events</h5>
+    <!-- Events Section -->
+    <div class="col-12">
+        <div class="glass-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-semibold mb-0"><i class="bi bi-calendar-event me-2"></i>All Events</h5>
                 <a href="{{ url_for('admin.new_event') }}" class="btn btn-gradient btn-sm">
                     <i class="bi bi-plus"></i> New Event
                 </a>
             </div>
             {% if events %}
-            <div class="list-group list-group-flush">
+            <div class="row g-3">
                 {% for event in events %}
-                <a href="{{ url_for('admin.event_detail', event_id=event.id) }}"
-                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center bg-transparent border-0 border-bottom py-3">
-                    <div>
-                        <strong>{{ event.name }}</strong>
-                        <br>
-                        <small class="text-muted">
-                            <i class="bi bi-people"></i> {{ event.participant_count }} participants
-                            {% if event.event_date %}
-                            • <i class="bi bi-calendar3"></i> {{ event.event_date.strftime('%b %d, %Y') }}
+                <div class="col-md-6 col-lg-4">
+                    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-decoration-none">
+                        <div class="event-card h-100">
+                            <div class="event-card-header">
+                                <h6 class="event-card-title mb-0">{{ event.name }}</h6>
+                                <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }} ms-2">
+                                    <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }} me-1"></i>{{
+                                    'Visible' if event.is_visible else 'Hidden' }}
+                                </span>
+                            </div>
+                            {% if event.description %}
+                            <p class="event-card-description text-muted small mb-3">{{ event.description[:80] }}{% if
+                                event.description|length > 80 %}...{% endif %}</p>
                             {% endif %}
-                        </small>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }}">
-                            {{ 'Visible' if event.is_visible else 'Hidden' }}
-                        </span>
-                        <i class="bi bi-chevron-right text-muted"></i>
-                    </div>
-                </a>
+                            <div class="event-card-stats">
+                                <div class="event-stat">
+                                    <i class="bi bi-people-fill text-primary"></i>
+                                    <span>{{ event.participant_count }}</span>
+                                    <small class="text-muted">Participants</small>
+                                </div>
+                                <div class="event-stat">
+                                    <i class="bi bi-download text-success"></i>
+                                    <span>{{ event.total_downloads }}</span>
+                                    <small class="text-muted">Downloads</small>
+                                </div>
+                            </div>
+                            {% if event.event_date %}
+                            <div class="event-card-footer">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar3 me-1"></i>{{ event.event_date.strftime('%b %d, %Y') }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </a>
+                </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-4">
+            <div class="text-center py-5">
                 <i class="bi bi-calendar-x display-4 text-muted"></i>
-                <p class="text-muted mt-2 mb-0">No events yet. Create your first event!</p>
+                <p class="text-muted mt-3 mb-0">No events yet. Create your first event!</p>
             </div>
             {% endif %}
         </div>
     </div>
 
     <!-- Recent Downloads -->
-    <div class="col-lg-5">
-        <div class="glass-card p-4 h-100">
+    <div class="col-12">
+        <div class="glass-card p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-semibold mb-0"><i class="bi bi-clock-history me-2"></i>Recent Downloads</h5>
                 <a href="{{ url_for('admin.view_download_logs') }}" class="btn btn-outline-secondary btn-sm">
