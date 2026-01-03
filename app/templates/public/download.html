@@ -56,7 +56,7 @@
                 <i class="bi bi-envelope text-gradient"></i> Enter Your Email
             </h5>
 
-            <form method="POST" action="{{ url_for('public.download_page', event_id=event.id) }}">
+            <form method="POST" action="{{ url_for('public.download_page', event_id=event.id, token=request.args.get('token')) if event.is_protected else url_for('public.download_page', event_id=event.id) }}">
                 <!-- Email Input -->
                 <div class="mb-4">
                     <label for="email" class="form-label">
