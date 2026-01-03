@@ -68,8 +68,8 @@
     </div>
     <div class="mt-2">
         <input type="text" class="form-control form-control-sm" id="protectedUrl"
-            value="{{ request.host_url.rstrip('/') }}/event/{{ event.id }}?token={{ event.access_token }}" readonly
-            style="font-family: monospace; font-size: 0.85em;">
+            value="{{ url_for('public.download_page', event_id=event.id, token=event.access_token, _external=True) }}"
+            readonly style="font-family: monospace; font-size: 0.85em;">
     </div>
 </div>
 <script>
