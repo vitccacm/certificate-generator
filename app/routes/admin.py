@@ -47,23 +47,38 @@ def dashboard():
 @login_required
 def list_events():
     """
-    List all events page (both visible and hidden).
-    Archived events are sorted to the bottom.
+    List all events page.
+    Sort order: visible first, then hidden, then archived.
+    Supports search by event name.
     """
-    # Sort: non-archived first (by created_at desc), then archived (by archived_at desc)
-    active_events = Event.query.filter_by(is_archived=False).order_by(Event.created_at.desc()).all()
-    archived_events = Event.query.filter_by(is_archived=True).order_by(Event.archived_at.desc()).all()
-    events = active_events + archived_events
+    search_query = request.args.get('q', '').strip()
     
-    visible_count = sum(1 for e in events if e.is_visible and not e.is_archived)
-    hidden_count = sum(1 for e in events if not e.is_visible and not e.is_archived)
-    archived_count = len(archived_events)
+    # Base queries
+    visible_events = Event.query.filter_by(is_visible=True, is_archived=False)
+    hidden_events = Event.query.filter_by(is_visible=False, is_archived=False)
+    archived_events = Event.query.filter_by(is_archived=True)
+    
+    # Apply search filter if provided
+    if search_query:
+        search_filter = Event.name.ilike(f'%{search_query}%')
+        visible_events = visible_events.filter(search_filter)
+        hidden_events = hidden_events.filter(search_filter)
+        archived_events = archived_events.filter(search_filter)
+    
+    # Execute queries with ordering
+    visible_events = visible_events.order_by(Event.created_at.desc()).all()
+    hidden_events = hidden_events.order_by(Event.created_at.desc()).all()
+    archived_events = archived_events.order_by(Event.archived_at.desc()).all()
+    
+    # Combined list in order: visible, hidden, archived
+    events = visible_events + hidden_events + archived_events
     
     return render_template('admin/events.html',
                          events=events,
-                         visible_count=visible_count,
-                         hidden_count=hidden_count,
-                         archived_count=archived_count)
+                         visible_count=len(visible_events),
+                         hidden_count=len(hidden_events),
+                         archived_count=len(archived_events),
+                         search_query=search_query)
 
 
 # ==================== ADMIN MANAGEMENT ====================
@@ -372,6 +387,45 @@ def toggle_event(event_id):
     db.session.commit()
     
     flash(f'Event "{event.name}" is now {status}.', 'success')
+    return redirect(url_for('admin.event_detail', event_id=event.id))
+
+
+@admin_bp.route('/events/<int:event_id>/toggle-protection', methods=['POST'])
+@login_required
+def toggle_protection(event_id):
+    """
+    Toggle protection status of an event.
+    When enabling protection, generates an access token.
+    When disabling, clears the token.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # Block toggling archived events
+    if event.is_archived:
+        flash('Archived events cannot be modified.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
+    if event.is_protected:
+        # Remove protection
+        event.is_protected = False
+        event.access_token = None
+        action_detail = f'Removed protection from event: {event.name}'
+        flash(f'Event "{event.name}" is no longer protected and is now publicly accessible.', 'success')
+    else:
+        # Enable protection
+        event.is_protected = True
+        event.generate_access_token()
+        action_detail = f'Enabled protection for event: {event.name}'
+        flash(f'Event "{event.name}" is now protected. Use the signed URL to share access.', 'success')
+    
+    log_admin_action(
+        admin_id=session.get('admin_id'),
+        action='toggle_event_protection',
+        details=action_detail,
+        ip_address=request.remote_addr
+    )
+    db.session.commit()
+    
     return redirect(url_for('admin.event_detail', event_id=event.id))
 
 

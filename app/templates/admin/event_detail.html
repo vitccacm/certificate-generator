@@ -129,6 +129,13 @@
                 {{ 'Hide Event' if event.is_visible else 'Show Event' }}
             </button>
         </form>
+        <form action="{{ url_for('admin.toggle_protection', event_id=event.id) }}" method="POST" class="d-inline">
+            <button type="submit" class="btn btn-outline-{{ 'info' if event.is_protected else 'secondary' }}"
+                title="{{ 'Remove protection (make public)' if event.is_protected else 'Enable protection (require signed URL)' }}">
+                <i class="bi bi-{{ 'shield-lock-fill' if event.is_protected else 'shield' }}"></i>
+                {{ 'Remove Protection' if event.is_protected else 'Make Protected' }}
+            </button>
+        </form>
         <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
             data-bs-target="#archiveEventModal">
             <i class="bi bi-archive"></i> Archive Event
