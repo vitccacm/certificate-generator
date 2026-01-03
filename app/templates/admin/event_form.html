@@ -56,7 +56,7 @@
                 </div>
 
                 <!-- Visibility Toggle -->
-                <div class="mb-4">
+                <div class="mb-3">
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="is_visible" name="is_visible" {{ 'checked'
                             if not event or event.is_visible else '' }} style="width: 3em; height: 1.5em;">
@@ -68,6 +68,23 @@
                         When enabled, this event will appear on the public page
                     </small>
                 </div>
+
+                {% if not event %}
+                <!-- Protected Event Toggle (only for new events) -->
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_protected" name="is_protected"
+                            style="width: 3em; height: 1.5em;">
+                        <label class="form-check-label ms-2" for="is_protected">
+                            <i class="bi bi-shield-lock me-1"></i>Protected Event
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        Protected events are only accessible via a private signed URL. They won't appear on the public
+                        homepage.
+                    </small>
+                </div>
+                {% endif %}
 
                 <!-- Buttons -->
                 <div class="d-flex gap-2">

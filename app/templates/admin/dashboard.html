@@ -75,10 +75,17 @@
                         <div class="event-card h-100">
                             <div class="event-card-header">
                                 <h6 class="event-card-title mb-0">{{ event.name }}</h6>
-                                <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }} ms-2">
-                                    <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }} me-1"></i>{{
-                                    'Visible' if event.is_visible else 'Hidden' }}
-                                </span>
+                                <div class="d-flex flex-wrap gap-1 ms-2">
+                                    <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }}">
+                                        <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }} me-1"></i>{{
+                                        'Visible' if event.is_visible else 'Hidden' }}
+                                    </span>
+                                    {% if event.is_protected %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-shield-lock me-1"></i>Protected
+                                    </span>
+                                    {% endif %}
+                                </div>
                             </div>
                             {% if event.description %}
                             <p class="event-card-description text-muted small mb-3">{{ event.description[:80] }}{% if

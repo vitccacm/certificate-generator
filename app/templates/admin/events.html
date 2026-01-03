@@ -15,7 +15,7 @@
 
 <!-- Stats Cards -->
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stat-card">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
@@ -27,11 +27,11 @@
         </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stat-card success">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <p class="opacity-75 mb-1">Visible Events</p>
+                    <p class="opacity-75 mb-1">Visible</p>
                     <h3>{{ visible_count }}</h3>
                 </div>
                 <i class="bi bi-eye fs-2 opacity-50"></i>
@@ -39,14 +39,27 @@
         </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stat-card secondary">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <p class="opacity-75 mb-1">Hidden Events</p>
+                    <p class="opacity-75 mb-1">Hidden</p>
                     <h3>{{ hidden_count }}</h3>
                 </div>
                 <i class="bi bi-eye-slash fs-2 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="stat-card"
+            style="background: linear-gradient(135deg, rgba(108, 117, 125, 0.1), rgba(108, 117, 125, 0.05));">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <p class="opacity-75 mb-1">Archived</p>
+                    <h3>{{ archived_count }}</h3>
+                </div>
+                <i class="bi bi-archive fs-2 opacity-50"></i>
             </div>
         </div>
     </div>
@@ -68,10 +81,22 @@
                 <div class="event-card h-100">
                     <div class="event-card-header">
                         <h6 class="event-card-title mb-0">{{ event.name }}</h6>
-                        <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }} ms-2">
-                            <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }} me-1"></i>{{ 'Visible' if
-                            event.is_visible else 'Hidden' }}
-                        </span>
+                        <div class="d-flex flex-wrap gap-1 ms-2">
+                            <span class="badge bg-{{ 'success' if event.is_visible else 'secondary' }}">
+                                <i class="bi bi-{{ 'eye' if event.is_visible else 'eye-slash' }} me-1"></i>{{ 'Visible'
+                                if event.is_visible else 'Hidden' }}
+                            </span>
+                            {% if event.is_protected %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-shield-lock me-1"></i>Protected
+                            </span>
+                            {% endif %}
+                            {% if event.is_archived %}
+                            <span class="badge bg-dark">
+                                <i class="bi bi-archive me-1"></i>Archived
+                            </span>
+                            {% endif %}
+                        </div>
                     </div>
                     {% if event.description %}
                     <p class="event-card-description text-muted small mb-3">{{ event.description[:80] }}{% if
