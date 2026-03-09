@@ -23,7 +23,7 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     CERTIFICATES_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'certificates')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload
-    ALLOWED_EXTENSIONS = {'pdf'}
+    ALLOWED_EXTENSIONS = {'png'}
     ALLOWED_BULK_EXTENSIONS = {'csv', 'xlsx', 'xls'}
     
     # CAPTCHA configuration
