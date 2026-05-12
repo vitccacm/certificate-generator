@@ -274,15 +274,97 @@
 
 <!-- Participants Table -->
 <div class="glass-card">
-    <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
-        <h5 class="fw-semibold mb-0">
-            <i class="bi bi-people"></i> Participants ({{ participants|length }})
-        </h5>
-        {% if participants and not event.is_archived %}
-        <button type="button" class="btn btn-outline-danger btn-sm" id="toggleBulkDelete">
-            <i class="bi bi-trash"></i> Bulk Delete
-        </button>
-        {% endif %}
+    <!-- Segmented filter slider styles -->
+    <style>
+        .filter-seg {
+            display: inline-flex;
+            position: relative;
+            background: rgba(var(--bs-secondary-rgb, 108,117,125), 0.12);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 0;
+            user-select: none;
+        }
+        .filter-seg input[type="radio"] { display: none; }
+        .filter-seg .filter-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            height: calc(100% - 6px);
+            border-radius: 8px;
+            background: var(--bs-body-bg, #fff);
+            box-shadow: 0 1px 6px rgba(0,0,0,.18);
+            transition: transform .22s cubic-bezier(.4,0,.2,1), width .22s cubic-bezier(.4,0,.2,1);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .filter-seg label {
+            position: relative;
+            z-index: 1;
+            cursor: pointer;
+            padding: 5px 14px;
+            font-size: .8rem;
+            font-weight: 500;
+            border-radius: 8px;
+            color: var(--bs-secondary-color, #6c757d);
+            transition: color .18s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .filter-seg input:checked + label {
+            color: var(--bs-body-color, #212529);
+            font-weight: 600;
+        }
+        /* accent colours per segment */
+        #filterAll:checked    + label { color: var(--bs-body-color, #212529); }
+        #filterDownloaded:checked + label { color: #146c43; }
+        #filterNotDownloaded:checked + label { color: #997404; }
+        .dark-theme .filter-seg,
+        [data-bs-theme="dark"] .filter-seg {
+            background: rgba(255,255,255,.08);
+        }
+        [data-bs-theme="dark"] .filter-seg .filter-slider {
+            background: rgba(255,255,255,.12);
+        }
+    </style>
+
+    <div class="p-4 border-bottom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <h5 class="fw-semibold mb-0">
+                <i class="bi bi-people"></i> Participants
+                (<span id="visibleCount">{{ participants|length }}</span> / {{ participants|length }})
+            </h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <!-- Sliding segmented filter -->
+                <div class="filter-seg" id="downloadFilter" role="group" aria-label="Filter by download status">
+                    <!-- sliding pill -->
+                    <div class="filter-slider" id="filterSliderPill"></div>
+
+                    <input type="radio" name="dlFilter" id="filterAll" value="all" checked>
+                    <label for="filterAll">
+                        <i class="bi bi-list-ul"></i> All
+                    </label>
+
+                    <input type="radio" name="dlFilter" id="filterDownloaded" value="downloaded">
+                    <label for="filterDownloaded">
+                        <i class="bi bi-check-circle"></i> Downloaded
+                    </label>
+
+                    <input type="radio" name="dlFilter" id="filterNotDownloaded" value="not-downloaded">
+                    <label for="filterNotDownloaded">
+                        <i class="bi bi-x-circle"></i> Not Downloaded
+                    </label>
+                </div>
+
+                {% if participants and not event.is_archived %}
+                <button type="button" class="btn btn-outline-danger btn-sm" id="toggleBulkDelete">
+                    <i class="bi bi-trash"></i> Bulk Delete
+                </button>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     {% if participants %}
@@ -307,7 +389,7 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0" id="participantsTable">
                 <thead>
                     <tr>
                         <th class="d-none bulk-checkbox-col" style="width: 40px;"></th>
@@ -323,7 +405,7 @@
                 </thead>
                 <tbody>
                     {% for participant in participants %}
-                    <tr>
+                    <tr class="participant-row">
                         <td class="d-none bulk-checkbox-col">
                             <input type="checkbox" class="form-check-input participant-checkbox" name="participant_ids"
                                 value="{{ participant.id }}" onchange="updateSelectedCount()">
@@ -351,7 +433,7 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-info">{{ participant.download_count }}</span>
+                            <span class="badge bg-info download-count-badge">{{ participant.download_count }}</span>
                         </td>
                         {% if not event.is_archived %}
                         <td class="text-end participant-actions">
@@ -381,6 +463,12 @@
                         {% endif %}
                     </tr>
                     {% endfor %}
+                    <tr id="noFilterResults" class="d-none">
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-funnel fs-4 d-block mb-2"></i>
+                            No participants match the selected filter.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -469,6 +557,76 @@
         document.querySelectorAll('.participant-checkbox').forEach(cb => cb.checked = false);
         document.getElementById('selectAll').checked = false;
         updateSelectedCount();
+    }
+
+    // ── Download-status filter + slider pill ───────────────────────────────
+    function moveSliderPill() {
+        const seg   = document.getElementById('downloadFilter');
+        const pill  = document.getElementById('filterSliderPill');
+        if (!seg || !pill) return;
+        const checked = seg.querySelector('input[name="dlFilter"]:checked');
+        if (!checked) return;
+        // The label immediately follows the input
+        const lbl = checked.nextElementSibling;
+        if (!lbl) return;
+        pill.style.width     = lbl.offsetWidth + 'px';
+        pill.style.transform = 'translateX(' + lbl.offsetLeft + 'px)';
+    }
+
+    function applyDownloadFilter() {
+        moveSliderPill();
+
+        const value = (document.querySelector('input[name="dlFilter"]:checked') || {}).value || 'all';
+        const rows  = document.querySelectorAll('#participantsTable tbody tr.participant-row');
+        let visible = 0;
+
+        rows.forEach(row => {
+            const badge = row.querySelector('.download-count-badge');
+            const count = badge ? parseInt(badge.textContent.trim(), 10) : 0;
+
+            let show = true;
+            if (value === 'not-downloaded') show = count === 0;
+            else if (value === 'downloaded') show = count > 0;
+
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+
+        const vcSpan = document.getElementById('visibleCount');
+        if (vcSpan) vcSpan.textContent = visible;
+
+        const noResults = document.getElementById('noFilterResults');
+        if (noResults) noResults.classList.toggle('d-none', visible > 0);
+    }
+
+    document.querySelectorAll('input[name="dlFilter"]').forEach(radio => {
+        radio.addEventListener('change', applyDownloadFilter);
+    });
+
+    // Initialise pill position once fonts/icons are loaded
+    window.addEventListener('load', moveSliderPill);
+    // Fallback in case load already fired
+    if (document.readyState === 'complete') moveSliderPill();
+
+    // Patch toggleSelectAll so it only targets visible rows
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.participant-row:not([style*="display: none"]) .participant-checkbox');
+        checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        updateSelectedCount();
+    }
+
+    // Patch updateSelectedCount to use visible rows
+    function updateSelectedCount() {
+        const checkboxes    = document.querySelectorAll('.participant-checkbox:checked');
+        const allVisible    = document.querySelectorAll('.participant-row:not([style*="display: none"]) .participant-checkbox');
+        const countSpan     = document.getElementById('selectedCount');
+        const deleteBtn     = document.getElementById('confirmBulkDelete');
+        const selectAll     = document.getElementById('selectAll');
+
+        if (countSpan)  countSpan.textContent = checkboxes.length + ' selected';
+        if (deleteBtn)  deleteBtn.disabled = checkboxes.length === 0;
+        if (selectAll)  selectAll.checked = allVisible.length > 0 && checkboxes.length === allVisible.length;
     }
 </script>
 
