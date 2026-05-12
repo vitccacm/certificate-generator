@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Contact us — ACM SC VITC{% endblock %}
+
+{% block content %}
+<section class="contact-hero animate-in">
+    <a href="https://vitchennai.acm.org" target="_blank" rel="noopener" class="hero-eyebrow">
+        ACM Student Chapter · VIT Chennai
+        <i class="bi bi-arrow-up-right"></i>
+    </a>
+    <h1>
+        Say&nbsp;hello,<br>
+        <span class="text-gradient">let's&nbsp;build&nbsp;together.</span>
+    </h1>
+    <p class="contact-lead">
+        Reach out about events, certificates, collaborations, or just to chat about computing.
+        Pick whichever channel works for you — we're listening on all of them.
+    </p>
+</section>
+
+<section class="contact-grid animate-in delay-1">
+    <a href="mailto:vitcc.acmsc@vit.ac.in" class="contact-card contact-card--email">
+        <div class="contact-card-icon">
+            <i class="bi bi-envelope-fill"></i>
+        </div>
+        <div class="contact-card-body">
+            <span class="contact-card-eyebrow">Email</span>
+            <h3 class="contact-card-title">Drop us a line</h3>
+            <p class="contact-card-handle">vitcc.acmsc@vit.ac.in</p>
+        </div>
+        <span class="contact-card-arrow"><i class="bi bi-arrow-up-right"></i></span>
+    </a>
+
+    <a href="https://www.linkedin.com/company/acm-vitc/" target="_blank" rel="noopener"
+        class="contact-card contact-card--linkedin">
+        <div class="contact-card-icon">
+            <i class="bi bi-linkedin"></i>
+        </div>
+        <div class="contact-card-body">
+            <span class="contact-card-eyebrow">LinkedIn</span>
+            <h3 class="contact-card-title">Follow our company page</h3>
+            <p class="contact-card-handle">linkedin.com/company/acm-vitc</p>
+        </div>
+        <span class="contact-card-arrow"><i class="bi bi-arrow-up-right"></i></span>
+    </a>
+
+    <a href="https://www.instagram.com/acm_vitcc/" target="_blank" rel="noopener"
+        class="contact-card contact-card--instagram">
+        <div class="contact-card-icon">
+            <i class="bi bi-instagram"></i>
+        </div>
+        <div class="contact-card-body">
+            <span class="contact-card-eyebrow">Instagram</span>
+            <h3 class="contact-card-title">Catch the latest updates</h3>
+            <p class="contact-card-handle">@acm_vitcc</p>
+        </div>
+        <span class="contact-card-arrow"><i class="bi bi-arrow-up-right"></i></span>
+    </a>
+
+    <a href="https://github.com/vitccacm/" target="_blank" rel="noopener"
+        class="contact-card contact-card--github">
+        <div class="contact-card-icon">
+            <i class="bi bi-github"></i>
+        </div>
+        <div class="contact-card-body">
+            <span class="contact-card-eyebrow">GitHub</span>
+            <h3 class="contact-card-title">Explore our Projects</h3>
+            <p class="contact-card-handle">github.com/vitccacm</p>
+        </div>
+        <span class="contact-card-arrow"><i class="bi bi-arrow-up-right"></i></span>
+    </a>
+</section>
+
+<section class="contact-footnote animate-in delay-2">
+    <p>
+        For certificate-related queries, email is the fastest route &mdash;
+        please include your <strong>event name</strong> and <strong>registered email</strong>.
+    </p>
+    <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to home
+    </a>
+</section>
+{% endblock %}

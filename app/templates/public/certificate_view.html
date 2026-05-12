@@ -1,61 +1,261 @@
 {% extends "base.html" %}
-{% block title %}Your Certificate - {{ participant.name }}{% endblock %}
+
+{% block title %}Your Certificate — {{ participant.name }}{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+    referrerpolicy="no-referrer"></script>
+<script>
+    (function () {
+        const previewUrl = {{ url_for('public.preview_certificate', participant_id=participant.id) | tojson }};
+        const logUrl = {{ url_for('public.log_download', participant_id=participant.id) | tojson }};
+        const baseName = {{ (participant.name ~ '_' ~ event.name) | tojson }};
+        const safeName = baseName.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
+
+        // Fire-and-forget download log — counts the certificate as downloaded in the admin app
+        const logDownload = () => {
+            try {
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon(logUrl);
+                } else {
+                    fetch(logUrl, { method: 'POST', keepalive: true }).catch(() => {});
+                }
+            } catch (e) { /* ignore — download already succeeded for the user */ }
+        };
+
+        const triggerDownload = (blob, filename) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+        };
+
+        const setBusy = (btn, on, label) => {
+            if (!btn) return;
+            const icon = btn.querySelector('i');
+            const text = btn.querySelector('span');
+            if (on) {
+                btn.dataset.iconClass = icon ? icon.className : '';
+                btn.dataset.text = text ? text.textContent : '';
+                if (icon) icon.className = 'bi bi-arrow-repeat spin';
+                if (text) text.textContent = label;
+                btn.setAttribute('disabled', 'disabled');
+                btn.classList.add('is-busy');
+            } else {
+                if (icon && btn.dataset.iconClass) icon.className = btn.dataset.iconClass;
+                if (text && btn.dataset.text) text.textContent = btn.dataset.text;
+                btn.removeAttribute('disabled');
+                btn.classList.remove('is-busy');
+            }
+        };
+
+        const loadImage = (url) => new Promise((resolve, reject) => {
+            const img = new Image();
+            // same-origin URL — no crossOrigin needed; setting it can break some servers
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Image failed to load'));
+            img.src = url;
+        });
+
+        const imageToDataUrl = (img) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            return canvas.toDataURL('image/png');
+        };
+
+        // Cached image so PDF generation can reuse if already loaded
+        let cachedImage = null;
+        const getImage = async () => {
+            if (cachedImage) return cachedImage;
+            cachedImage = await loadImage(previewUrl);
+            return cachedImage;
+        };
+
+        const downloadPng = async (btn) => {
+            setBusy(btn, true, 'Preparing…');
+            try {
+                const res = await fetch(previewUrl, { cache: 'no-store' });
+                if (!res.ok) throw new Error('Fetch failed');
+                const blob = await res.blob();
+                triggerDownload(blob, safeName + '.png');
+                logDownload();
+            } catch (err) {
+                alert('Could not download the PNG. Please try again.');
+                console.error(err);
+            } finally {
+                setBusy(btn, false);
+            }
+        };
+
+        const downloadPdf = async (btn) => {
+            setBusy(btn, true, 'Building PDF…');
+            try {
+                if (!window.jspdf || !window.jspdf.jsPDF) {
+                    throw new Error('PDF library failed to load — please refresh');
+                }
+                const img = await getImage();
+                const wPx = img.naturalWidth;
+                const hPx = img.naturalHeight;
+                if (!wPx || !hPx) throw new Error('Certificate image has no dimensions');
+
+                // Convert to base64 dataURL via an offscreen canvas (most reliable for jsPDF)
+                const dataUrl = imageToDataUrl(img);
+
+                // Convert pixels to points at 96 DPI for a sensibly sized PDF
+                const wPt = wPx * 72 / 96;
+                const hPt = hPx * 72 / 96;
+                const orientation = wPt >= hPt ? 'landscape' : 'portrait';
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation,
+                    unit: 'pt',
+                    format: [wPt, hPt],
+                    compress: true
+                });
+                pdf.addImage(dataUrl, 'PNG', 0, 0, wPt, hPt, undefined, 'FAST');
+                pdf.save(safeName + '.pdf');
+                logDownload();
+            } catch (err) {
+                console.error('PDF generation failed:', err);
+                alert('Could not build the PDF: ' + (err && err.message ? err.message : err));
+            } finally {
+                setBusy(btn, false);
+            }
+        };
+
+        // Wire side-panel buttons
+        const btnPng = document.getElementById('downloadPngBtn');
+        const btnPdf = document.getElementById('downloadPdfBtn');
+        btnPng && btnPng.addEventListener('click', () => downloadPng(btnPng));
+        btnPdf && btnPdf.addEventListener('click', () => downloadPdf(btnPdf));
+
+        // Lightbox
+        const previewImg = document.getElementById('certificatePreviewImg');
+        const lightbox = document.getElementById('certLightbox');
+        const lightboxClose = document.getElementById('certLightboxClose');
+        const lightboxPng = document.getElementById('lightboxDownloadPng');
+        const lightboxPdf = document.getElementById('lightboxDownloadPdf');
+
+        // Move lightbox to <body> so its z-index isn't trapped by main's stacking context
+        if (lightbox && lightbox.parentElement !== document.body) {
+            document.body.appendChild(lightbox);
+        }
+
+        const openLightbox = () => {
+            if (!lightbox) return;
+            lightbox.removeAttribute('hidden');
+            requestAnimationFrame(() => lightbox.classList.add('open'));
+            document.body.style.overflow = 'hidden';
+        };
+
+        const closeLightbox = () => {
+            if (!lightbox) return;
+            lightbox.classList.remove('open');
+            document.body.style.overflow = '';
+            setTimeout(() => lightbox.setAttribute('hidden', ''), 220);
+        };
+
+        previewImg && previewImg.addEventListener('click', openLightbox);
+        lightboxClose && lightboxClose.addEventListener('click', closeLightbox);
+        lightbox && lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) closeLightbox();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightbox && lightbox.classList.contains('open')) {
+                closeLightbox();
+            }
+        });
+        lightboxPng && lightboxPng.addEventListener('click', () => {
+            closeLightbox();
+            downloadPng(lightboxPng);
+        });
+        lightboxPdf && lightboxPdf.addEventListener('click', () => {
+            closeLightbox();
+            downloadPdf(lightboxPdf);
+        });
+    })();
+</script>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <a href="{{ url_for('public.download_page', event_id=event.id) }}"
-            class="btn btn-link text-decoration-none mb-3 animate-in">
-            <i class="bi bi-arrow-left"></i> Back
-        </a>
-
-        <div class="glass-card p-4 mb-4 animate-in delay-1">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center gap-3">
-                        <div
-                            style="width: 60px; height: 60px; border-radius: 50%; background: var(--gradient-success); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
-                            <i class="bi bi-check-lg"></i>
-                        </div>
-                        <div>
-                            <h4 class="mb-1">Certificate Found!</h4>
-                            <p class="text-muted mb-0"><strong>{{ participant.name }}</strong> • {{ event.name }}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                    <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
-                        class="btn btn-gradient-success btn-lg">
-                        <i class="bi bi-download"></i> Download Certificate
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="glass-card animate-in delay-2" style="overflow: hidden;">
-            <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
-                style="background: var(--gradient-primary); color: white;">
-                <span><i class="bi bi-image"></i> Certificate Preview</span>
-                <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
-                    class="btn btn-light btn-sm">
-                    <i class="bi bi-download"></i> Download
-                </a>
-            </div>
-            <div class="text-center p-3" style="background: #f0f0f0;">
-                <img src="{{ url_for('public.preview_certificate', participant_id=participant.id) }}"
-                    alt="Certificate Preview"
-                    style="max-width: 100%; height: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-            </div>
-        </div>
-
-        <div class="text-center mt-4 animate-in delay-3">
-            <a href="{{ url_for('public.download_certificate', participant_id=participant.id) }}"
-                class="btn btn-gradient-success btn-lg me-2">
-                <i class="bi bi-download"></i> Download Certificate
+<div class="download-shell download-shell--wide download-shell--cert">
+    <div class="glass-card download-split cert-split animate-in delay-1">
+        <!-- LEFT: identity + download CTAs -->
+        <aside class="download-aside">
+            <a href="{{ url_for('public.download_page', event_id=event.id) }}" class="back-link back-link--inset">
+                <i class="bi bi-arrow-left"></i>
+                <span>Back</span>
             </a>
-            <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary btn-lg">
-                <i class="bi bi-house"></i> Back to Home
-            </a>
-        </div>
+
+            <img src="https://api.dicebear.com/9.x/shapes/svg?seed={{ event.name|urlencode }}&radius=20"
+                alt="" class="download-hero-art" width="76" height="76" loading="lazy">
+
+            <p class="cert-issued-to">Issued to</p>
+            <h1 class="download-title cert-name">{{ participant.name }}</h1>
+
+            <p class="cert-event-line">{{ event.name }}</p>
+
+            <p class="download-date">
+                <i class="bi bi-calendar3"></i>
+                {% if event.event_date %}{{ event.event_date.strftime('%B %d, %Y') }}{% else %}{{ event.created_at.strftime('%B %d, %Y') }}{% endif %}
+            </p>
+
+            <div class="cert-download-row">
+                <button type="button" id="downloadPngBtn" class="btn btn-gradient btn-lg cert-download-btn">
+                    <i class="bi bi-file-earmark-image"></i>
+                    <span>Download PNG</span>
+                </button>
+                <button type="button" id="downloadPdfBtn" class="btn btn-outline-secondary btn-lg cert-download-btn">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                    <span>Download PDF</span>
+                </button>
+            </div>
+
+        </aside>
+
+        <!-- Vertical divider -->
+        <div class="download-split-divider" aria-hidden="true"></div>
+
+        <!-- RIGHT: certificate image, no inner card -->
+        <section class="cert-main">
+            <img src="{{ url_for('public.preview_certificate', participant_id=participant.id) }}"
+                alt="Certificate preview for {{ participant.name }}"
+                class="cert-preview-img" id="certificatePreviewImg"
+                title="Click to view full size">
+            <span class="cert-zoom-hint" aria-hidden="true">
+                <i class="bi bi-arrows-fullscreen"></i> Click to enlarge
+            </span>
+        </section>
+    </div>
+</div>
+
+<!-- Lightbox -->
+<div class="cert-lightbox" id="certLightbox" role="dialog" aria-modal="true" aria-label="Certificate full preview" hidden>
+    <button type="button" class="cert-lightbox-close" id="certLightboxClose" aria-label="Close preview">
+        <i class="bi bi-x-lg"></i>
+    </button>
+    <div class="cert-lightbox-frame">
+        <img src="{{ url_for('public.preview_certificate', participant_id=participant.id) }}"
+            alt="Certificate full preview for {{ participant.name }}"
+            class="cert-lightbox-img">
+    </div>
+    <div class="cert-lightbox-actions">
+        <button type="button" id="lightboxDownloadPng" class="btn btn-gradient btn-lg">
+            <i class="bi bi-file-earmark-image"></i>
+            <span>Download PNG</span>
+        </button>
+        <button type="button" id="lightboxDownloadPdf" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-file-earmark-pdf"></i>
+            <span>Download PDF</span>
+        </button>
     </div>
 </div>
 {% endblock %}

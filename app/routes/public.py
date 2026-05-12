@@ -241,6 +241,31 @@ def preview_certificate(participant_id):
         )
 
 
+@public_bp.route('/contact')
+def contact():
+    """Public contact / social-links landing page."""
+    return render_template('public/contact.html')
+
+
+@public_bp.route('/log-download/<int:participant_id>', methods=['POST'])
+def log_download(participant_id):
+    """
+    Record a client-side certificate download (PNG/PDF generated in-browser).
+    Increments the participant's download counter and writes a DownloadLog row.
+    Returns 204 on success so the browser can fire-and-forget (sendBeacon / fetch keepalive).
+    """
+    participant = Participant.query.get_or_404(participant_id)
+    event = participant.event
+
+    # Only log downloads for events that are actually downloadable
+    if not event.is_visible or event.is_archived:
+        return ('', 403)
+
+    participant.increment_download(ip_address=request.remote_addr)
+    db.session.commit()
+    return ('', 204)
+
+
 @public_bp.route('/download/<int:participant_id>')
 def download_certificate(participant_id):
     """
