@@ -43,6 +43,11 @@
                     camera to open this page with the certificate's code already filled in,
                     then complete the quick check to confirm it is genuine.
                 </p>
+                <p class="download-state-sub">
+                    <i class="bi bi-info-circle"></i> Certificate verification was introduced in
+                    June&nbsp;2026. Only events and certificates issued from June&nbsp;2026 onwards
+                    carry a verification QR code &mdash; older certificates cannot be verified here.
+                </p>
                 <div>
                     <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary mt-2">
                         <i class="bi bi-arrow-left"></i> Back to events
@@ -88,6 +93,8 @@
                 </p>
                 <p class="download-state-sub">
                     Make sure you scanned the QR code directly from the certificate.
+                    Note: verification was introduced in June&nbsp;2026, so certificates
+                    issued before then do not carry a verifiable QR code.
                 </p>
                 <div>
                     <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary mt-2">
