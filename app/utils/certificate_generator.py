@@ -97,14 +97,38 @@ def hex_to_rgb(hex_color):
         return (0, 0, 0)
 
 
-def generate_certificate_png(template_path, participant_name, x_percent, y_percent, 
-                             font_size=70, font_color='#000000', font_name='times'):
+def _render_qr_image(qr_url):
+    """
+    Generate a QR code as an RGBA Pillow image for the given URL.
+    Returns None on failure (missing library, bad data) so callers can
+    degrade gracefully.
+    """
+    try:
+        import qrcode
+        qr = qrcode.QRCode(
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=2,
+        )
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        return qr_img.convert('RGBA')
+    except Exception as e:
+        logging.error(f"QR generation failed: {e}")
+        return None
+
+
+def generate_certificate_png(template_path, participant_name, x_percent, y_percent,
+                             font_size=70, font_color='#000000', font_name='times',
+                             verify_enabled=False, qr_url=None,
+                             qr_x_percent=85.0, qr_y_percent=85.0, qr_size_percent=12.0):
     # Force Hardcoded values as requested to fix persistent issues
     font_size = 70
     font_name = 'times'
 
     if not PIL_AVAILABLE: return None
-    
+
     try:
         if not os.path.exists(template_path):
             logging.error(f"Template missing: {template_path}")
@@ -113,17 +137,17 @@ def generate_certificate_png(template_path, participant_name, x_percent, y_perce
         with Image.open(template_path) as template:
             if template.mode != 'RGBA':
                 template = template.convert('RGBA')
-            
+
             certificate = template.copy()
             draw = ImageDraw.Draw(certificate)
             width, height = certificate.size
-            
+
             x = (x_percent / 100) * width
             y = (y_percent / 100) * height
-            
+
             font = get_font(font_name, font_size)
             color = hex_to_rgb(font_color)
-            
+
             # Determine text size
             try:
                 # Newer Pillow
@@ -133,12 +157,24 @@ def generate_certificate_png(template_path, participant_name, x_percent, y_perce
             except AttributeError:
                 # Older Pillow fallback
                 text_width, text_height = draw.textsize(participant_name, font=font)
-            
+
             text_x = x - (text_width / 2)
             text_y = y - (text_height / 2)
-            
+
             draw.text((text_x, text_y), participant_name, fill=color, font=font)
-            
+
+            # Overlay verification QR code (baked in server-side when enabled)
+            if verify_enabled and qr_url:
+                qr_img = _render_qr_image(qr_url)
+                if qr_img is not None:
+                    qr_px = max(1, int((qr_size_percent / 100) * width))
+                    qr_img = qr_img.resize((qr_px, qr_px))
+                    center_x = (qr_x_percent / 100) * width
+                    center_y = (qr_y_percent / 100) * height
+                    paste_x = int(center_x - qr_px / 2)
+                    paste_y = int(center_y - qr_px / 2)
+                    certificate.paste(qr_img, (paste_x, paste_y), qr_img)
+
             # Convert back to RGB/PNG
             if certificate.mode == 'RGBA':
                 background = Image.new('RGB', certificate.size, (255, 255, 255))

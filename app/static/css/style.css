@@ -3519,3 +3519,25 @@ small {
     .admin-main { margin-left: 0 !important; }
     body { background: white; color: black; }
 }
+
+/* Certificate verification details */
+.verify-details {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem 1.25rem;
+    text-align: left;
+    max-width: 26rem;
+    margin: 1.25rem auto 1.5rem;
+}
+.verify-details dt {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+    align-self: center;
+    margin: 0;
+}
+.verify-details dd {
+    font-weight: 600;
+    margin: 0;
+}

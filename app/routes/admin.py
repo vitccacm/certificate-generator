@@ -1098,13 +1098,29 @@ def configure_template(event_id):
         if font_name not in available_fonts:
             font_name = 'helv'
         
+        # Verification / QR settings
+        verify_enabled = request.form.get('verify_enabled') == 'on'
+        try:
+            qr_x = float(request.form.get('qr_x', 85))
+            qr_y = float(request.form.get('qr_y', 85))
+            qr_size = float(request.form.get('qr_size', 12))
+        except (ValueError, TypeError):
+            qr_x, qr_y, qr_size = 85.0, 85.0, 12.0
+        qr_x = max(0, min(100, qr_x))
+        qr_y = max(0, min(100, qr_y))
+        qr_size = max(3, min(40, qr_size))
+
         # Update event
         event.name_position_x = x_percent
         event.name_position_y = y_percent
         event.font_size = font_size
         event.font_color = font_color
         event.font_name = font_name
-        
+        event.verify_enabled = verify_enabled
+        event.qr_position_x = qr_x
+        event.qr_position_y = qr_y
+        event.qr_size = qr_size
+
         log_admin_action(
             admin_id=session.get('admin_id'),
             action='configure_template',

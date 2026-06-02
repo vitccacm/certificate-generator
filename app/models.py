@@ -72,6 +72,12 @@ class Event(db.Model):
     # Protected event fields (signed URL access only)
     is_protected = db.Column(db.Boolean, default=False)
     access_token = db.Column(db.String(64), nullable=True)
+
+    # Certificate verification fields (QR code baked into the certificate)
+    verify_enabled = db.Column(db.Boolean, default=False)
+    qr_position_x = db.Column(db.Float, default=85.0)  # QR center X (percentage 0-100)
+    qr_position_y = db.Column(db.Float, default=85.0)  # QR center Y (percentage 0-100)
+    qr_size = db.Column(db.Float, default=12.0)  # QR width as percentage of certificate width
     
     # Archived event fields
     is_archived = db.Column(db.Boolean, default=False)

@@ -10,8 +10,25 @@ from app.models import db, Event, Participant
 from app.utils.captcha import get_captcha_question, validate_captcha
 from app.utils.helpers import validate_email, sanitize_email
 from app.utils.certificate_generator import generate_certificate_png
+from app.utils.verification import (generate_token, verify_token,
+                                    format_code, parse_code)
 
 public_bp = Blueprint('public', __name__)
+
+
+def build_qr_url(event, participant):
+    """
+    Build the external verification URL encoded in a certificate's QR code,
+    or None when verification is disabled for the event.
+    """
+    if not event.verify_enabled:
+        return None
+    return url_for(
+        'public.verify_certificate',
+        code=format_code(participant.id),
+        token=generate_token(participant.email),
+        _external=True,
+    )
 
 
 @public_bp.route('/')
@@ -202,7 +219,12 @@ def preview_certificate(participant_id):
             y_percent=event.name_position_y,
             font_size=event.font_size or 36,
             font_color=event.font_color or '#000000',
-            font_name=event.font_name or 'helv'
+            font_name=event.font_name or 'helv',
+            verify_enabled=event.verify_enabled,
+            qr_url=build_qr_url(event, participant),
+            qr_x_percent=event.qr_position_x if event.qr_position_x is not None else 85.0,
+            qr_y_percent=event.qr_position_y if event.qr_position_y is not None else 85.0,
+            qr_size_percent=event.qr_size if event.qr_size is not None else 12.0
         )
         
         if cert_bytes is None:
@@ -308,7 +330,12 @@ def download_certificate(participant_id):
             y_percent=event.name_position_y,
             font_size=event.font_size or 36,
             font_color=event.font_color or '#000000',
-            font_name=event.font_name or 'helv'
+            font_name=event.font_name or 'helv',
+            verify_enabled=event.verify_enabled,
+            qr_url=build_qr_url(event, participant),
+            qr_x_percent=event.qr_position_x if event.qr_position_x is not None else 85.0,
+            qr_y_percent=event.qr_position_y if event.qr_position_y is not None else 85.0,
+            qr_size_percent=event.qr_size if event.qr_size is not None else 12.0
         )
         
         if cert_bytes is None:
@@ -447,6 +474,73 @@ def serve_certificate_file(filename):
         return '', 404
     
     return send_file(cert_path, mimetype='image/png')
+
+
+# ==================== CERTIFICATE VERIFICATION ====================
+
+def _lookup_verified_certificate(code, token):
+    """
+    Resolve a (code, token) pair to a (participant, event) tuple, or None if
+    the certificate cannot be verified. A single generic failure avoids
+    revealing which ids exist.
+    """
+    participant_id = parse_code(code)
+    if participant_id is None:
+        return None
+
+    participant = Participant.query.get(participant_id)
+    if participant is None:
+        return None
+
+    event = participant.event
+    if not event or not event.verify_enabled or not event.is_visible:
+        return None
+
+    if not verify_token(participant.email, token):
+        return None
+
+    return participant, event
+
+
+@public_bp.route('/verify')
+def verify_info():
+    """Landing page explaining QR-based certificate verification."""
+    return render_template('public/verify.html', state='info')
+
+
+@public_bp.route('/verify/<code>', methods=['GET', 'POST'])
+def verify_certificate(code):
+    """
+    Verify a certificate via its QR code.
+    GET:  show the captcha form (code + token carried through hidden fields).
+    POST: validate the captcha, then the code+token, and show the result.
+    """
+    if request.method == 'POST':
+        token = request.form.get('token', '')
+        captcha_input = request.form.get('captcha', '')
+
+        # Validate CAPTCHA first
+        if not validate_captcha(captcha_input):
+            flash('Incorrect answer. Please solve the math problem.', 'error')
+            captcha_question = get_captcha_question()
+            return render_template('public/verify.html', state='form',
+                                   code=code, token=token,
+                                   captcha_question=captcha_question)
+
+        result = _lookup_verified_certificate(code, token)
+        if result is None:
+            return render_template('public/verify.html', state='invalid', code=code)
+
+        participant, event = result
+        return render_template('public/verify.html', state='valid',
+                               participant=participant, event=event)
+
+    # GET - show the captcha form with the scanned code/token preserved
+    token = request.args.get('token', '')
+    captcha_question = get_captcha_question()
+    return render_template('public/verify.html', state='form',
+                           code=code, token=token,
+                           captcha_question=captcha_question)
 
 
 # ==================== ERROR HANDLERS ====================

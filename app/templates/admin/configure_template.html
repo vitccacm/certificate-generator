@@ -81,23 +81,50 @@
                 <!-- Hidden inputs for position -->
                 <input type="hidden" name="name_x" id="name_x" value="{{ event.name_position_x or 50 }}">
                 <input type="hidden" name="name_y" id="name_y" value="{{ event.name_position_y or 50 }}">
+                <input type="hidden" name="qr_x" id="qr_x" value="{{ event.qr_position_x if event.qr_position_x is not none else 85 }}">
+                <input type="hidden" name="qr_y" id="qr_y" value="{{ event.qr_position_y if event.qr_position_y is not none else 85 }}">
 
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> Font is fixed to <strong>Times New Roman (70px)</strong>.
-                            Position can still be adjusted.
-                        </div>
-                        <input type="hidden" name="font_name" value="times">
-                        <input type="hidden" name="font_size" id="font_size" value="70">
-                        <input type="hidden" name="font_color" id="font_color" value="#000000">
-                    </div>
-                    <div class="col-md-12">
-                        <button type="submit" class="btn btn-gradient w-100">
-                            <i class="bi bi-check-lg"></i> Save Position
-                        </button>
+                <input type="hidden" name="font_name" value="times">
+                <input type="hidden" name="font_size" id="font_size" value="70">
+                <input type="hidden" name="font_color" id="font_color" value="#000000">
+
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle"></i> Font is fixed to <strong>Times New Roman (70px)</strong>.
+                    Position can still be adjusted.
+                </div>
+
+                <!-- Verification / QR settings -->
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" name="verify_enabled"
+                        id="verify_enabled" {% if event.verify_enabled %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="verify_enabled">
+                        <i class="bi bi-qr-code"></i> Enable certificate verification (QR code)
+                    </label>
+                </div>
+
+                <div id="qrSettings" class="mb-3 {% if not event.verify_enabled %}d-none{% endif %}">
+                    <label for="qr_size" class="form-label">QR size (% of certificate width)</label>
+                    <input type="number" class="form-control" name="qr_size" id="qr_size" min="3" max="40" step="1"
+                        value="{{ event.qr_size if event.qr_size is not none else 12 }}">
+                    <div class="form-text">The QR is baked into the certificate and links to the verification page.</div>
+                </div>
+
+                <!-- Placing selector -->
+                <div class="mb-3">
+                    <label class="form-label d-block">Click on the template to place:</label>
+                    <div class="btn-group" role="group" aria-label="Placing mode">
+                        <input type="radio" class="btn-check" name="placingMode" id="placeName" value="name" checked>
+                        <label class="btn btn-outline-primary" for="placeName"><i class="bi bi-fonts"></i> Name</label>
+
+                        <input type="radio" class="btn-check" name="placingMode" id="placeQr" value="qr"
+                            {% if not event.verify_enabled %}disabled{% endif %}>
+                        <label class="btn btn-outline-primary" for="placeQr"><i class="bi bi-qr-code"></i> QR code</label>
                     </div>
                 </div>
+
+                <button type="submit" class="btn btn-gradient w-100">
+                    <i class="bi bi-check-lg"></i> Save Configuration
+                </button>
             </form>
 
             <!-- Template Preview with Click-to-Position -->
@@ -113,7 +140,7 @@
                     </div>
 
                     <!-- Position Marker -->
-                    <div id="positionMarker" style="position: absolute; 
+                    <div id="positionMarker" style="position: absolute;
                                 transform: translate(-50%, -50%);
                                 pointer-events: none;
                                 font-weight: bold;
@@ -122,6 +149,18 @@
                                 z-index: 20;
                                 text-shadow: 1px 1px 2px rgba(255,255,255,0.8), -1px -1px 2px rgba(255,255,255,0.8);">
                         Sample Name
+                    </div>
+
+                    <!-- QR Marker -->
+                    <div id="qrMarker" style="position: absolute;
+                                transform: translate(-50%, -50%);
+                                pointer-events: none;
+                                z-index: 20;
+                                background: rgba(255,255,255,0.85);
+                                border: 2px dashed #6610f2;
+                                display: flex; align-items: center; justify-content: center;
+                                color: #6610f2;">
+                        <i class="bi bi-qr-code" style="font-size: 1.5rem;"></i>
                     </div>
                 </div>
             </div>
@@ -148,77 +187,93 @@
 {% if event.template_filename %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const container = document.getElementById('templateContainer');
         const clickOverlay = document.getElementById('clickOverlay');
         const marker = document.getElementById('positionMarker');
+        const qrMarker = document.getElementById('qrMarker');
         const nameXInput = document.getElementById('name_x');
         const nameYInput = document.getElementById('name_y');
-        // Inputs removed/hidden, using fixed values
+        const qrXInput = document.getElementById('qr_x');
+        const qrYInput = document.getElementById('qr_y');
+        const qrSizeInput = document.getElementById('qr_size');
+        const verifyToggle = document.getElementById('verify_enabled');
+        const qrSettings = document.getElementById('qrSettings');
+        const placeQrRadio = document.getElementById('placeQr');
         const positionDisplay = document.getElementById('positionDisplay');
         const templateImage = document.getElementById('templateImage');
 
-        // Template dimensions from backend
-        const originalWidth = {{ template_width|default (0)
-    }};
-
-    function updateMarkerStyle() {
-        // Calculate scale factor
-        let scale = 1;
-        if (originalWidth > 0 && templateImage.offsetWidth > 0) {
-            scale = templateImage.offsetWidth / originalWidth;
+        function currentMode() {
+            const checked = document.querySelector('input[name="placingMode"]:checked');
+            return checked ? checked.value : 'name';
         }
 
-        // Apply scale to fixed font size (70px)
-        const realFontSize = 70;
-        const visualFontSize = realFontSize * scale;
+        function updateNameMarkerStyle() {
+            // Font is fixed at 70px in the backend; image is shown ~full width.
+            marker.style.fontSize = '70px';
+            marker.style.color = '#000000';
+            marker.style.fontFamily = 'Times, "Times New Roman", serif';
+            marker.style.fontWeight = 'normal';
+        }
 
-        marker.style.fontSize = visualFontSize + 'px';
-        marker.style.color = '#000000';
-        marker.style.fontFamily = 'Times, "Times New Roman", serif';
-        marker.style.fontWeight = 'normal';
-    }
+        function updateQrMarker() {
+            qrMarker.style.left = parseFloat(qrXInput.value) + '%';
+            qrMarker.style.top = parseFloat(qrYInput.value) + '%';
+            const sizePct = Math.max(3, Math.min(40, parseFloat(qrSizeInput.value) || 12));
+            const px = (sizePct / 100) * (templateImage.offsetWidth || 0);
+            qrMarker.style.width = px + 'px';
+            qrMarker.style.height = px + 'px';
+            qrMarker.style.display = verifyToggle.checked ? 'flex' : 'none';
+        }
 
-    function initializeMarker() {
-        const xPercent = parseFloat(nameXInput.value);
-        const yPercent = parseFloat(nameYInput.value);
+        function initMarkers() {
+            marker.style.left = parseFloat(nameXInput.value) + '%';
+            marker.style.top = parseFloat(nameYInput.value) + '%';
+            updateNameMarkerStyle();
+            updateQrMarker();
+        }
 
-        marker.style.left = xPercent + '%';
-        marker.style.top = yPercent + '%';
+        function syncVerifyUI() {
+            const on = verifyToggle.checked;
+            qrSettings.classList.toggle('d-none', !on);
+            placeQrRadio.disabled = !on;
+            if (!on) {
+                // Force placing mode back to Name if QR was selected
+                document.getElementById('placeName').checked = true;
+            }
+            updateQrMarker();
+        }
 
-        // Wait for image to load to get dimensions for scaling
+        // Click on the overlay to set the active element's position
+        clickOverlay.addEventListener('click', function (e) {
+            const rect = clickOverlay.getBoundingClientRect();
+            const xPercent = ((e.clientX - rect.left) / clickOverlay.offsetWidth) * 100;
+            const yPercent = ((e.clientY - rect.top) / clickOverlay.offsetHeight) * 100;
+
+            if (currentMode() === 'qr' && verifyToggle.checked) {
+                qrXInput.value = xPercent.toFixed(2);
+                qrYInput.value = yPercent.toFixed(2);
+                updateQrMarker();
+            } else {
+                nameXInput.value = xPercent.toFixed(2);
+                nameYInput.value = yPercent.toFixed(2);
+                marker.style.left = xPercent + '%';
+                marker.style.top = yPercent + '%';
+            }
+            positionDisplay.textContent = xPercent.toFixed(1) + '%, ' + yPercent.toFixed(1) + '%';
+        });
+
+        verifyToggle.addEventListener('change', syncVerifyUI);
+        qrSizeInput.addEventListener('input', updateQrMarker);
+        window.addEventListener('resize', function () {
+            updateNameMarkerStyle();
+            updateQrMarker();
+        });
+
         if (templateImage.complete) {
-            updateMarkerStyle();
+            initMarkers();
         } else {
-            templateImage.onload = updateMarkerStyle;
+            templateImage.onload = initMarkers;
         }
-    }
-
-    // Update on window resize as image width changes
-    window.addEventListener('resize', updateMarkerStyle);
-
-    // Click on the overlay to set position
-    clickOverlay.addEventListener('click', function (e) {
-        const rect = clickOverlay.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const xPercent = (x / clickOverlay.offsetWidth) * 100;
-        const yPercent = (y / clickOverlay.offsetHeight) * 100;
-
-        // Update hidden inputs
-        nameXInput.value = xPercent.toFixed(2);
-        nameYInput.value = yPercent.toFixed(2);
-
-        // Update marker position
-        marker.style.left = xPercent + '%';
-        marker.style.top = yPercent + '%';
-
-        // Update display
-        positionDisplay.textContent = xPercent.toFixed(1) + '%, ' + yPercent.toFixed(1) + '%';
-    });
-
-    // Initialize marker position on load
-    initializeMarker();
+        syncVerifyUI();
     });
 </script>
 {% endif %}

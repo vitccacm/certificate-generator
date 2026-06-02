@@ -10,6 +10,13 @@ load_dotenv()
 class Config:
     """Base configuration"""
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
+
+    # Secret used to derive certificate-verification QR tokens (HMAC of recipient email).
+    # Set VERIFY_TOKEN_SECRET in the production deployment. If unset it falls back to
+    # SECRET_KEY (also mandatory in prod) so there is never a silent empty-key path that
+    # would let anyone forge verification tokens. Rotating this value invalidates all
+    # previously issued verification QR links.
+    VERIFY_TOKEN_SECRET = os.environ.get('VERIFY_TOKEN_SECRET') or SECRET_KEY
     
     # Database configuration
     # Default: SQLite

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Certificate{% endblock %}
+
+{% block content %}
+<div class="download-shell download-shell--wide">
+    <div class="glass-card download-split animate-in delay-1">
+        <!-- LEFT: intro -->
+        <aside class="download-aside">
+            <a href="{{ url_for('public.index') }}" class="back-link back-link--inset">
+                <i class="bi bi-arrow-left"></i>
+                <span>Back to events</span>
+            </a>
+            <img src="https://api.dicebear.com/9.x/shapes/svg?seed=verify&radius=20"
+                alt="" class="download-hero-art" width="84" height="84" loading="lazy">
+
+            <span class="download-eyebrow"><i class="bi bi-patch-check"></i> Certificate verification</span>
+            <h1 class="download-title">Verify a certificate</h1>
+            <p class="download-desc">
+                Confirm that a certificate issued by ACM&nbsp;SC&nbsp;VITC is authentic by
+                scanning the QR code printed on it.
+            </p>
+
+            <div class="download-aside-foot">
+                <span><i class="bi bi-shield-check"></i> Hosted by ACM&nbsp;SC&nbsp;VITC</span>
+            </div>
+        </aside>
+
+        <!-- Vertical divider -->
+        <div class="download-split-divider" aria-hidden="true"></div>
+
+        <!-- RIGHT: state-dependent content -->
+        <section class="download-main">
+
+            {% if state == 'info' %}
+            <div class="download-state text-center">
+                <div class="download-state-icon">
+                    <i class="bi bi-qr-code-scan"></i>
+                </div>
+                <h2 class="download-state-title">Scan the QR code</h2>
+                <p class="download-state-text">
+                    Each verifiable certificate carries a QR code. Scan it with your phone's
+                    camera to open this page with the certificate's code already filled in,
+                    then complete the quick check to confirm it is genuine.
+                </p>
+                <div>
+                    <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary mt-2">
+                        <i class="bi bi-arrow-left"></i> Back to events
+                    </a>
+                </div>
+            </div>
+
+            {% elif state == 'valid' %}
+            <div class="download-state text-center">
+                <div class="download-state-icon">
+                    <i class="bi bi-patch-check-fill text-success"></i>
+                </div>
+                <h2 class="download-state-title">Certificate is authentic</h2>
+                <p class="download-state-text">
+                    This certificate was issued by ACM&nbsp;SC&nbsp;VITC.
+                </p>
+                <dl class="verify-details">
+                    <dt>Issued to</dt>
+                    <dd>{{ participant.name }}</dd>
+                    <dt>Event</dt>
+                    <dd>{{ event.name }}</dd>
+                    <dt>Date</dt>
+                    <dd>
+                        {% if event.event_date %}{{ event.event_date.strftime('%B %d, %Y') }}{% else %}{{ event.created_at.strftime('%B %d, %Y') }}{% endif %}
+                    </dd>
+                </dl>
+                <div>
+                    <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary mt-2">
+                        <i class="bi bi-arrow-left"></i> Back to events
+                    </a>
+                </div>
+            </div>
+
+            {% elif state == 'invalid' %}
+            <div class="download-state text-center">
+                <div class="download-state-icon download-state-icon--muted">
+                    <i class="bi bi-shield-exclamation"></i>
+                </div>
+                <h2 class="download-state-title">No valid certificate found</h2>
+                <p class="download-state-text">
+                    We couldn't verify a certificate for this code. The link may be incorrect,
+                    incomplete, or the certificate may not exist.
+                </p>
+                <p class="download-state-sub">
+                    Make sure you scanned the QR code directly from the certificate.
+                </p>
+                <div>
+                    <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary mt-2">
+                        <i class="bi bi-arrow-left"></i> Back to events
+                    </a>
+                </div>
+            </div>
+
+            {% else %}{# state == 'form' #}
+            <div class="download-panel-head">
+                <span class="step-pill">Verification</span>
+                <h2 class="download-panel-title">Confirm you're human</h2>
+                <p class="download-panel-sub">
+                    Solve the quick check below to verify this certificate's authenticity.
+                </p>
+            </div>
+
+            <form method="POST" action="{{ url_for('public.verify_certificate', code=code) }}"
+                class="download-form" novalidate>
+                <input type="hidden" name="token" value="{{ token }}">
+
+                <!-- Math CAPTCHA -->
+                <div class="form-field">
+                    <label class="form-label">
+                        <i class="bi bi-shield-check"></i> Quick verification
+                    </label>
+                    <div class="captcha-stack">
+                        <div class="captcha-prompt">
+                            <span class="captcha-question">{{ captcha_question }}</span>
+                            <span class="captcha-equals">=</span>
+                            <span class="captcha-hint">solve to continue</span>
+                        </div>
+                        <input type="text" class="form-control form-control-lg captcha-answer" name="captcha"
+                            placeholder="Your answer" required autocomplete="off" inputmode="numeric"
+                            pattern="[0-9]*">
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn btn-gradient btn-lg w-100 mt-2">
+                    <i class="bi bi-patch-check"></i> Verify certificate
+                </button>
+
+                <div class="download-trust">
+                    <span><i class="bi bi-qr-code"></i> Code {{ code }}</span>
+                    <span><i class="bi bi-shield-check"></i> Captcha protected</span>
+                </div>
+            </form>
+            {% endif %}
+
+        </section>
+    </div>
+</div>
+{% endblock %}
