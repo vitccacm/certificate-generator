@@ -134,6 +134,10 @@ class Participant(db.Model):
     # Relationship to download logs
     download_logs = db.relationship('DownloadLog', backref='participant', lazy='dynamic',
                                     cascade='all, delete-orphan')
+
+    # Relationship to email logs
+    email_logs = db.relationship('EmailLog', backref='participant', lazy='dynamic',
+                                 cascade='all, delete-orphan')
     
     # Unique constraint: one certificate per email per event
     __table_args__ = (
@@ -148,6 +152,42 @@ class Participant(db.Model):
         self.download_count += 1
         log = DownloadLog(participant_id=self.id, ip_address=ip_address)
         db.session.add(log)
+
+    @property
+    def first_downloaded_at(self):
+        """Earliest download time from the logs, or None if never downloaded"""
+        log = self.download_logs.order_by(DownloadLog.downloaded_at.asc()).first()
+        return log.downloaded_at if log else None
+
+    @property
+    def emails_sent_count(self):
+        """Number of certificate emails successfully sent to this participant"""
+        return self.email_logs.filter_by(status='sent').count()
+
+    @property
+    def last_emailed_at(self):
+        """Most recent successful email time, or None if never emailed"""
+        log = (self.email_logs.filter_by(status='sent')
+               .order_by(EmailLog.sent_at.desc()).first())
+        return log.sent_at if log else None
+
+
+class EmailLog(db.Model):
+    """Log of certificate notification emails sent to participants"""
+    __tablename__ = 'email_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('participants.id'), nullable=False)
+    admin_id = db.Column(db.Integer, db.ForeignKey('admins.id'), nullable=True)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(10), nullable=False, default='sent')  # 'sent' | 'failed'
+    error = db.Column(db.Text, nullable=True)
+
+    # Admin who triggered the email (no backref needed on Admin)
+    admin = db.relationship('Admin')
+
+    def __repr__(self):
+        return f'<EmailLog {self.participant_id} {self.status} at {self.sent_at}>'
 
 
 class DownloadLog(db.Model):

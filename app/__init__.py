@@ -3,9 +3,13 @@ Flask Application Factory
 Certificate Download Portal
 """
 import os
+from datetime import timedelta
 from flask import Flask
 from app.config import config
 from app.models import db
+
+# IST is a fixed UTC+5:30 offset (no DST), so a plain timedelta is exact
+IST_OFFSET = timedelta(hours=5, minutes=30)
 
 
 def create_app(config_name=None):
@@ -31,6 +35,11 @@ def create_app(config_name=None):
     
     # Initialize extensions
     db.init_app(app)
+
+    # Template filter: convert a stored UTC datetime to IST for display
+    @app.template_filter('ist')
+    def to_ist(dt):
+        return dt + IST_OFFSET if dt else dt
     
     # Register blueprints
     from app.routes import auth_bp, admin_bp, public_bp

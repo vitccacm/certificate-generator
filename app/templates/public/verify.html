@@ -73,6 +73,10 @@
                     <dd>
                         {% if event.event_date %}{{ event.event_date.strftime('%B %d, %Y') }}{% else %}{{ event.created_at.strftime('%B %d, %Y') }}{% endif %}
                     </dd>
+                    {% if participant.first_downloaded_at %}
+                    <dt>Downloaded on</dt>
+                    <dd>{{ (participant.first_downloaded_at|ist).strftime('%B %d, %Y at %I:%M %p') }} IST</dd>
+                    {% endif %}
                 </dl>
                 <div>
                     <a href="{{ url_for('public.index') }}" class="btn btn-outline-secondary mt-2">

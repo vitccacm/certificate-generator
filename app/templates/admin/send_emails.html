@@ -1,0 +1,390 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Send Emails - {{ event.name }} - Certificate Portal{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.event_detail', event_id=event.id) }}">{{ event.name }}</a></li>
+        <li class="breadcrumb-item active">Send Emails</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div class="d-flex align-items-start gap-3">
+        <div
+            style="width: 60px; height: 60px; border-radius: 16px; background: var(--gradient-primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+            <i class="bi bi-envelope-paper"></i>
+        </div>
+        <div>
+            <h1 class="mb-1">Send Certificate Emails</h1>
+            <div class="d-flex flex-wrap gap-3 text-muted">
+                <span><i class="bi bi-trophy"></i> {{ event.name }}</span>
+                <span><i class="bi bi-people"></i> {{ participants|length }} participants</span>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('admin.event_email_logs', event_id=event.id) }}" class="btn btn-info">
+            <i class="bi bi-journal-text"></i> Email Logs
+        </a>
+        <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to event
+        </a>
+    </div>
+</div>
+
+{% if not mail_configured %}
+<!-- SMTP not configured -->
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>SMTP is not configured.</strong>
+    Replace the placeholder <code>MAIL_USERNAME</code> and <code>MAIL_PASSWORD</code>
+    values in <code>app/config.py</code> on the server to enable email sending.
+</div>
+{% endif %}
+
+{% if not participants %}
+<div class="glass-card p-5 text-center">
+    <i class="bi bi-person-x display-4 text-muted"></i>
+    <h5 class="mt-3">No Participants</h5>
+    <p class="text-muted mb-0">Add participants to this event before sending emails.</p>
+</div>
+{% else %}
+
+<!-- Progress (hidden until a batch starts) -->
+<div class="glass-card p-4 mb-4 d-none" id="progressCard">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="fw-semibold mb-0" id="progressTitle">
+            <i class="bi bi-envelope-arrow-up"></i> Sending emails&hellip;
+        </h6>
+        <span class="text-muted small" id="progressText">0 / 0</span>
+    </div>
+    <div class="progress" style="height: 10px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+            id="progressBar" role="progressbar" style="width: 0%"></div>
+    </div>
+    <div class="mt-2 small">
+        <span class="text-success me-3"><i class="bi bi-check-circle"></i> <span id="sentCount">0</span> sent</span>
+        <span class="text-danger"><i class="bi bi-x-circle"></i> <span id="failedCount">0</span> failed</span>
+    </div>
+    <div class="alert alert-danger mt-3 mb-0 d-none" id="batchError"></div>
+</div>
+
+<!-- Selection + table -->
+<div class="glass-card">
+    <div class="p-4 border-bottom">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <h5 class="fw-semibold mb-0">
+                <i class="bi bi-people"></i> Select recipients
+                <span class="text-muted fs-6" id="selectedInfo">(0 selected)</span>
+            </h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="selectAllBtn">
+                    <i class="bi bi-check2-square"></i> Select all
+                </button>
+                <button type="button" class="btn btn-outline-warning btn-sm" id="selectNotDownloadedBtn">
+                    <i class="bi bi-x-circle"></i> Select not downloaded
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="clearBtn">
+                    <i class="bi bi-square"></i> Clear
+                </button>
+                <button type="button" class="btn btn-gradient btn-sm" id="sendBtn"
+                    {{ 'disabled' if not mail_configured }}>
+                    <i class="bi bi-send"></i> Send emails
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="emailTable">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" class="form-check-input" id="headerCheckbox">
+                    </th>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th class="text-center">Downloads</th>
+                    <th class="text-center">Emails sent</th>
+                    <th>Last emailed</th>
+                    <th class="text-center" style="width: 90px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for participant in participants %}
+                <tr class="email-row" data-id="{{ participant.id }}"
+                    data-downloads="{{ participant.download_count }}">
+                    <td>
+                        <input type="checkbox" class="form-check-input recipient-checkbox"
+                            value="{{ participant.id }}">
+                    </td>
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ participant.name }}</strong></td>
+                    <td><small>{{ participant.email }}</small></td>
+                    <td class="text-center">
+                        <span class="badge bg-{{ 'info' if participant.download_count else 'secondary' }}">
+                            {{ participant.download_count }}
+                        </span>
+                    </td>
+                    <td class="text-center email-sent-count">
+                        {% if participant.emails_sent_count %}
+                        <span class="badge bg-success">{{ participant.emails_sent_count }}</span>
+                        {% else %}
+                        <span class="text-muted">&mdash;</span>
+                        {% endif %}
+                    </td>
+                    <td class="last-emailed">
+                        {% if participant.last_emailed_at %}
+                        <small class="text-muted">{{ participant.last_emailed_at.strftime('%b %d, %Y %H:%M') }} UTC</small>
+                        {% else %}
+                        <small class="text-muted">Never</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center send-status"></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Send Confirmation Modal -->
+<div class="modal fade" id="confirmSendModal" tabindex="-1" aria-labelledby="confirmSendTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmSendTitle">
+                    <i class="bi bi-envelope-paper text-info me-2"></i>Send certificate emails
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <div class="display-6 fw-semibold" id="confirmCount">0</div>
+                    <div class="text-muted">recipient(s) selected</div>
+                </div>
+                <p class="mb-2">
+                    Each participant will receive an email with their personal
+                    download link and instructions for
+                    <strong>{{ event.name }}</strong>.
+                </p>
+                <ul class="text-muted small mb-0 ps-3">
+                    <li>Emails are sent one by one &mdash; estimated time:
+                        <strong id="confirmEta">&mdash;</strong></li>
+                    <li>Keep this page open until sending finishes.</li>
+                    <li>Every email is recorded in the activity logs.</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-gradient" id="confirmSendBtn">
+                    <i class="bi bi-send"></i> Yes, send emails
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const sendUrl = "{{ url_for('admin.send_emails_stream', event_id=event.id) }}";
+        const sendDelay = {{ config.get('MAIL_SEND_DELAY', 1.0) }};
+        const mailConfigured = {{ 'true' if mail_configured else 'false' }};
+
+        const rows = Array.from(document.querySelectorAll('.email-row'));
+        const checkboxes = () => Array.from(document.querySelectorAll('.recipient-checkbox'));
+        const checked = () => checkboxes().filter(cb => cb.checked);
+
+        const sendBtn = document.getElementById('sendBtn');
+        const selectedInfo = document.getElementById('selectedInfo');
+
+        function updateSelectedInfo() {
+            const n = checked().length;
+            selectedInfo.textContent = '(' + n + ' selected)';
+            sendBtn.disabled = !mailConfigured || n === 0 || sending;
+            const all = checkboxes();
+            document.getElementById('headerCheckbox').checked =
+                all.length > 0 && n === all.length;
+        }
+
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            checkboxes().forEach(cb => cb.checked = true);
+            updateSelectedInfo();
+        });
+        document.getElementById('selectNotDownloadedBtn').addEventListener('click', () => {
+            rows.forEach(row => {
+                row.querySelector('.recipient-checkbox').checked =
+                    parseInt(row.dataset.downloads, 10) === 0;
+            });
+            updateSelectedInfo();
+        });
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            checkboxes().forEach(cb => cb.checked = false);
+            updateSelectedInfo();
+        });
+        document.getElementById('headerCheckbox').addEventListener('change', function () {
+            checkboxes().forEach(cb => cb.checked = this.checked);
+            updateSelectedInfo();
+        });
+        checkboxes().forEach(cb => cb.addEventListener('change', updateSelectedInfo));
+
+        // ── Sending ────────────────────────────────────────────────────────
+        let sending = false;
+
+        function setRowStatus(id, status, error) {
+            const row = document.querySelector('.email-row[data-id="' + id + '"]');
+            if (!row) return;
+            const cell = row.querySelector('.send-status');
+            if (status === 'sending') {
+                cell.innerHTML = '<span class="spinner-border spinner-border-sm text-muted"></span>';
+            } else if (status === 'sent') {
+                cell.innerHTML = '<i class="bi bi-check-circle-fill text-success" title="Sent"></i>';
+                row.querySelector('.recipient-checkbox').checked = false;
+            } else if (status === 'failed') {
+                cell.innerHTML = '<i class="bi bi-x-circle-fill text-danger" title="' +
+                    (error || 'Failed').replace(/"/g, '&quot;') + '"></i>';
+            }
+        }
+
+        // ── Custom confirmation popup ──────────────────────────────────────
+        // Created lazily: this script runs before the Bootstrap bundle (loaded
+        // at the end of admin_base.html), so the global isn't available yet.
+        let confirmModal = null;
+        function getConfirmModal() {
+            if (!confirmModal) {
+                confirmModal = new bootstrap.Modal(document.getElementById('confirmSendModal'));
+            }
+            return confirmModal;
+        }
+
+        function formatEta(seconds) {
+            seconds = Math.max(1, Math.round(seconds));
+            if (seconds < 60) return '~' + seconds + ' second' + (seconds === 1 ? '' : 's');
+            const m = Math.floor(seconds / 60), s = seconds % 60;
+            return '~' + m + ' min' + (s ? ' ' + s + ' sec' : '');
+        }
+
+        function openConfirmPopup() {
+            const ids = checked();
+            if (!ids.length || sending) return;
+            document.getElementById('confirmCount').textContent = ids.length;
+            document.getElementById('confirmEta').textContent =
+                formatEta(ids.length * Math.max(sendDelay, 0.5));
+            getConfirmModal().show();
+        }
+
+        document.getElementById('confirmSendBtn').addEventListener('click', () => {
+            getConfirmModal().hide();
+            sendBatch();
+        });
+
+        async function sendBatch() {
+            const ids = checked().map(cb => parseInt(cb.value, 10));
+            if (!ids.length || sending) return;
+
+            sending = true;
+            updateSelectedInfo();
+            ['selectAllBtn', 'selectNotDownloadedBtn', 'clearBtn', 'headerCheckbox']
+                .forEach(i => document.getElementById(i).disabled = true);
+
+            const total = ids.length;
+            let sent = 0, failed = 0, done = 0, stopped = false;
+
+            const progressCard = document.getElementById('progressCard');
+            const progressBar = document.getElementById('progressBar');
+            const batchError = document.getElementById('batchError');
+            progressCard.classList.remove('d-none');
+            batchError.classList.add('d-none');
+            progressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
+            progressBar.style.width = '0%';
+            document.getElementById('progressText').textContent = '0 / ' + total;
+            document.getElementById('sentCount').textContent = '0';
+            document.getElementById('failedCount').textContent = '0';
+            document.getElementById('progressTitle').innerHTML =
+                '<i class="bi bi-envelope-arrow-up"></i> Sending emails&hellip;';
+
+            ids.forEach(id => setRowStatus(id, 'sending'));
+
+            function handleLine(msg) {
+                if (msg.event === 'error') {
+                    stopped = true;
+                    batchError.textContent = msg.error || 'Sending was stopped due to an SMTP error.';
+                    batchError.classList.remove('d-none');
+                    return;
+                }
+                if (msg.event === 'done') return;
+                done++;
+                if (msg.status === 'sent') sent++; else failed++;
+                setRowStatus(msg.participant_id, msg.status, msg.error);
+                document.getElementById('progressText').textContent = done + ' / ' + total;
+                document.getElementById('sentCount').textContent = sent;
+                document.getElementById('failedCount').textContent = failed;
+                progressBar.style.width = Math.round(done / total * 100) + '%';
+            }
+
+            // One request for the whole batch: the backend opens a single
+            // SMTP connection, sends every email over it, and streams one
+            // NDJSON result line per email as it goes.
+            try {
+                const resp = await fetch(sendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participant_ids: ids })
+                });
+                if (!resp.ok || !resp.body) {
+                    let err = 'Request failed (HTTP ' + resp.status + ')';
+                    try { err = (await resp.json()).error || err; } catch (e) { }
+                    throw new Error(err);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buf = '';
+                while (true) {
+                    const { done: eof, value } = await reader.read();
+                    if (eof) break;
+                    buf += decoder.decode(value, { stream: true });
+                    let nl;
+                    while ((nl = buf.indexOf('\n')) >= 0) {
+                        const line = buf.slice(0, nl).trim();
+                        buf = buf.slice(nl + 1);
+                        if (line) handleLine(JSON.parse(line));
+                    }
+                }
+            } catch (e) {
+                stopped = true;
+                batchError.textContent = e.message || 'Network error.';
+                batchError.classList.remove('d-none');
+            }
+
+            // Clear spinners on rows that never got a result (stopped early)
+            ids.forEach(id => {
+                const cell = document.querySelector('.email-row[data-id="' + id + '"] .send-status');
+                if (cell && cell.querySelector('.spinner-border')) cell.innerHTML = '';
+            });
+
+            progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+            document.getElementById('progressTitle').innerHTML = stopped
+                ? '<i class="bi bi-exclamation-triangle text-danger"></i> Sending stopped'
+                : '<i class="bi bi-check-circle text-success"></i> Finished';
+
+            sending = false;
+            ['selectAllBtn', 'selectNotDownloadedBtn', 'clearBtn', 'headerCheckbox']
+                .forEach(i => document.getElementById(i).disabled = false);
+            updateSelectedInfo();
+        }
+
+        sendBtn.addEventListener('click', openConfirmPopup);
+        updateSelectedInfo();
+    })();
+</script>
+{% endif %}
+{% endblock %}

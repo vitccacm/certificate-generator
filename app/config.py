@@ -38,6 +38,24 @@ class Config:
     CAPTCHA_WIDTH = 200
     CAPTCHA_HEIGHT = 70
 
+    # Email (SMTP) configuration for certificate notification emails.
+    # Edit these values directly (on the server) to enable email sending.
+    # The "your-..." placeholders keep sending DISABLED until replaced.
+    # WARNING: do not commit real credentials to git - replace the
+    # placeholders only on the deployed copy of this file.
+    MAIL_SERVER = 'mailserverlink       '
+    MAIL_PORT = 465
+    MAIL_USE_TLS = False  # STARTTLS (port 587) - off for port 465
+    MAIL_USE_SSL = True   # implicit SSL (port 465)
+    MAIL_USERNAME = 'username'
+    MAIL_PASSWORD = 'password'
+    # Display name only - the email address is added automatically
+    MAIL_SENDER_NAME = 'ACM VIT Chennai'
+    # From address; falls back to MAIL_USERNAME when empty
+    MAIL_DEFAULT_SENDER = ''
+    # Seconds to wait between consecutive emails (rate-limit protection)
+    MAIL_SEND_DELAY = 1.0
+
 
 class DevelopmentConfig(Config):
     """Development configuration"""

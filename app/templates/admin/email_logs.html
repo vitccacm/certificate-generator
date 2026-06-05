@@ -1,0 +1,138 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Email Logs - {{ event.name }} - Certificate Portal{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.event_detail', event_id=event.id) }}">{{ event.name }}</a></li>
+        <li class="breadcrumb-item active">Email Logs</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div class="d-flex align-items-start gap-3">
+        <div
+            style="width: 60px; height: 60px; border-radius: 16px; background: var(--gradient-primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+            <i class="bi bi-envelope-check"></i>
+        </div>
+        <div>
+            <h1 class="mb-1">Email Logs</h1>
+            <div class="d-flex flex-wrap gap-3 text-muted">
+                <span><i class="bi bi-trophy"></i> {{ event.name }}</span>
+                <span><i class="bi bi-journal-text"></i> {{ logs.total }} log entr{{ 'y' if logs.total == 1 else 'ies' }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if not event.is_archived %}
+        <a href="{{ url_for('admin.send_emails_page', event_id=event.id) }}" class="btn btn-info">
+            <i class="bi bi-send"></i> Send Emails
+        </a>
+        {% endif %}
+        <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to event
+        </a>
+    </div>
+</div>
+
+<div class="glass-card animate-in delay-2">
+    {% if logs.items %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Participant</th>
+                    <th>Email</th>
+                    <th class="text-center">Status</th>
+                    <th>Error</th>
+                    <th>Sent by</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs.items %}
+                <tr>
+                    <td>
+                        <small class="text-muted">
+                            {{ log.sent_at.strftime('%b %d, %Y') }}<br>
+                            {{ log.sent_at.strftime('%H:%M:%S') }} UTC
+                        </small>
+                    </td>
+                    <td><strong>{{ log.participant.name }}</strong></td>
+                    <td><small>{{ log.participant.email }}</small></td>
+                    <td class="text-center">
+                        {% if log.status == 'sent' %}
+                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Sent</span>
+                        {% else %}
+                        <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Failed</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ log.error or '-' }}</small>
+                    </td>
+                    <td>
+                        {% if log.admin %}
+                        <strong>{{ log.admin.username }}</strong>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="p-5 text-center">
+        <i class="bi bi-envelope-x display-4 text-muted"></i>
+        <h5 class="mt-3">No Emails Sent Yet</h5>
+        <p class="text-muted mb-0">Certificate emails sent for this event will appear here.</p>
+    </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if logs.pages > 1 %}
+    <div class="p-3 border-top">
+        <nav aria-label="Log pages">
+            <ul class="pagination pagination-sm mb-0 justify-content-center">
+                {% if logs.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ logs.prev_num }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in logs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {{ 'active' if page_num == logs.page else '' }}">
+                    <a class="page-link" href="?page={{ page_num }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+                {% endfor %}
+
+                {% if logs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ logs.next_num }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        <div class="text-center mt-2">
+            <small class="text-muted">
+                Showing {{ logs.items|length }} of {{ logs.total }} records
+            </small>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -3,16 +3,21 @@ Admin routes for dashboard, event management, and participant management.
 All routes require admin authentication.
 """
 import os
+import json
 from datetime import datetime
 import pandas as pd
-from flask import (Blueprint, render_template, request, redirect, url_for, 
-                   flash, current_app, session, Response, jsonify)
+from flask import (Blueprint, render_template, request, redirect, url_for,
+                   flash, current_app, session, Response, jsonify,
+                   stream_with_context)
 from werkzeug.utils import secure_filename
-from app.models import db, Event, Participant, DownloadLog, Admin, AdminLog, log_admin_action
+from app.models import (db, Event, Participant, DownloadLog, Admin, AdminLog,
+                        EmailLog, log_admin_action)
 from app.routes.auth import login_required
 from app.utils.helpers import (allowed_file, allowed_bulk_file, allowed_template_file,
                                 secure_filename_custom, validate_email,
                                 generate_unique_filename)
+from app.utils.mailer import (is_mail_configured, iter_certificate_emails,
+                              MailConnectionError)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -308,7 +313,12 @@ def event_detail(event_id):
     """
     event = Event.query.get_or_404(event_id)
     participants = event.participants.order_by(Participant.name).all()
-    return render_template('admin/event_detail.html', event=event, participants=participants)
+    total_emails_sent = (EmailLog.query.join(Participant)
+                         .filter(Participant.event_id == event_id,
+                                 EmailLog.status == 'sent').count())
+    return render_template('admin/event_detail.html', event=event,
+                           participants=participants,
+                           total_emails_sent=total_emails_sent)
 
 
 @admin_bp.route('/events/<int:event_id>/edit', methods=['GET', 'POST'])
@@ -1248,6 +1258,141 @@ def delete_template(event_id):
         db.session.commit()
         
         flash('Template deleted.', 'success')
-    
+
     return redirect(url_for('admin.event_detail', event_id=event_id))
+
+
+# ==================== CERTIFICATE EMAILS ====================
+
+@admin_bp.route('/events/<int:event_id>/emails')
+@login_required
+def send_emails_page(event_id):
+    """
+    Send Emails page: select participants (all / not downloaded / manual)
+    and email them their certificate download link.
+    """
+    event = Event.query.get_or_404(event_id)
+
+    if event.is_archived:
+        flash('This event is archived - emails cannot be sent.', 'warning')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+
+    participants = event.participants.order_by(Participant.name).all()
+    return render_template('admin/send_emails.html', event=event,
+                           participants=participants,
+                           mail_configured=is_mail_configured())
+
+
+@admin_bp.route('/events/<int:event_id>/emails/logs')
+@login_required
+def event_email_logs(event_id):
+    """
+    Email-sending logs for one event (newest first, paginated).
+    Read-only, so it stays accessible for archived events too.
+    """
+    event = Event.query.get_or_404(event_id)
+    page = request.args.get('page', 1, type=int)
+
+    logs = (EmailLog.query.join(Participant)
+            .filter(Participant.event_id == event_id)
+            .order_by(EmailLog.sent_at.desc())
+            .paginate(page=page, per_page=50, error_out=False))
+
+    return render_template('admin/email_logs.html', event=event, logs=logs)
+
+
+@admin_bp.route('/events/<int:event_id>/emails/send', methods=['POST'])
+@login_required
+def send_emails_stream(event_id):
+    """
+    Streaming JSON API: send certificate emails to the selected participants.
+
+    Request:  {participant_ids: [int]}
+    Response: NDJSON stream - one line per result as each email is sent:
+        {"participant_id": int, "status": "sent"|"failed", "error": str|null}
+    plus control lines:
+        {"event": "error", "error": str}   - batch stopped (SMTP failure)
+        {"event": "done", "sent": int, "failed": int}
+
+    The whole batch runs over ONE SMTP connection: opened when sending
+    starts, closed when it ends. One AdminLog entry is created per batch
+    and its running totals are updated as each email is sent, and every
+    EmailLog row is committed per result, so progress is persisted even if
+    the browser disconnects mid-batch.
+    """
+    event = Event.query.get_or_404(event_id)
+
+    if event.is_archived:
+        return jsonify({'error': 'Event is archived - emails cannot be sent.'}), 400
+
+    if not is_mail_configured():
+        return jsonify({'error': 'SMTP is not configured on the server.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    ids = data.get('participant_ids') or []
+
+    if not isinstance(ids, list) or not ids:
+        return jsonify({'error': 'No participants given.'}), 400
+
+    try:
+        ids = [int(i) for i in ids][:2000]  # sanity cap
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid participant ids.'}), 400
+
+    # Only accept participants that belong to this event
+    participants = (Participant.query
+                    .filter(Participant.id.in_(ids), Participant.event_id == event_id)
+                    .order_by(Participant.name)
+                    .all())
+    found_ids = {p.id for p in participants}
+    not_found = [i for i in ids if i not in found_ids]
+
+    admin_id = session.get('admin_id')
+    total = len(ids)
+
+    # One activity-log row per batch, updated with running totals as we go
+    batch_log = log_admin_action(
+        admin_id=admin_id,
+        action='send_certificate_emails',
+        details=f'Event "{event.name}": 0 sent, 0 failed of {total}',
+        ip_address=request.remote_addr
+    )
+    db.session.commit()
+
+    def generate():
+        sent = 0
+        failed = 0
+
+        def record(result):
+            nonlocal sent, failed
+            if result['status'] == 'sent':
+                sent += 1
+            else:
+                failed += 1
+            batch_log.details = (f'Event "{event.name}": '
+                                 f'{sent} sent, {failed} failed of {total}')
+            db.session.commit()
+            return json.dumps(result) + '\n'
+
+        for pid in not_found:
+            yield record({'participant_id': pid, 'status': 'failed',
+                          'error': 'Participant not found'})
+
+        try:
+            for result in iter_certificate_emails(participants, event,
+                                                  admin_id=admin_id):
+                yield record(result)
+        except MailConnectionError as e:
+            yield json.dumps({'event': 'error', 'error': str(e)}) + '\n'
+
+        yield json.dumps({'event': 'done', 'sent': sent, 'failed': failed}) + '\n'
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='application/x-ndjson',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',   # disable proxy buffering
+        },
+    )
 
