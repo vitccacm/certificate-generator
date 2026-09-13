@@ -3,8 +3,7 @@
 {% block title %}Your Certificate — {{ participant.name }}{% endblock %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
-    referrerpolicy="no-referrer"></script>
+<script src="{{ url_for('static', filename='vendor/jspdf.umd.min.js') }}">
 <script>
     (function () {
         const previewUrl = {{ url_for('public.preview_certificate', participant_id=participant.id) | tojson }};
