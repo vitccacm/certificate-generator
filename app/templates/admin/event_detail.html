@@ -39,7 +39,7 @@
             {{ 'Visible' if event.is_visible else 'Hidden' }}
         </span>
         {% if event.is_protected %}
-        <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+        <span class="badge bg-warning fs-6 px-3 py-2">
             <i class="bi bi-shield-lock"></i> Protected
         </span>
         {% endif %}
@@ -310,7 +310,8 @@
         .filter-seg {
             display: inline-flex;
             position: relative;
-            background: rgba(var(--bs-secondary-rgb, 108,117,125), 0.12);
+            background: var(--surface-2);
+            border: 1px solid var(--line-strong);
             border-radius: 10px;
             padding: 3px;
             gap: 0;
@@ -323,8 +324,9 @@
             left: 3px;
             height: calc(100% - 6px);
             border-radius: 8px;
-            background: var(--bs-body-bg, #fff);
-            box-shadow: 0 1px 6px rgba(0,0,0,.18);
+            background: var(--surface);
+            border: 1px solid var(--line-strong);
+            box-shadow: var(--shadow-sm);
             transition: transform .22s cubic-bezier(.4,0,.2,1), width .22s cubic-bezier(.4,0,.2,1);
             pointer-events: none;
             z-index: 0;
@@ -337,7 +339,7 @@
             font-size: .8rem;
             font-weight: 500;
             border-radius: 8px;
-            color: var(--bs-secondary-color, #6c757d);
+            color: var(--subtle);
             transition: color .18s;
             white-space: nowrap;
             display: flex;
@@ -345,20 +347,24 @@
             gap: 5px;
         }
         .filter-seg input:checked + label {
-            color: var(--bs-body-color, #212529);
             font-weight: 600;
         }
         /* accent colours per segment */
-        #filterAll:checked    + label { color: var(--bs-body-color, #212529); }
-        #filterDownloaded:checked + label { color: #146c43; }
-        #filterNotDownloaded:checked + label { color: #997404; }
+        #filterAll:checked    + label { color: var(--fg); }
+        #filterDownloaded:checked + label { color: #047857; }
+        #filterNotDownloaded:checked + label { color: #b45309; }
         .dark-theme .filter-seg,
         [data-bs-theme="dark"] .filter-seg {
-            background: rgba(255,255,255,.08);
+            background: var(--surface-2);
+            border-color: var(--line-strong);
         }
         [data-bs-theme="dark"] .filter-seg .filter-slider {
-            background: rgba(255,255,255,.12);
+            background: var(--surface-3);
+            border-color: var(--line-strong);
         }
+        [data-bs-theme="dark"] #filterAll:checked + label { color: var(--fg); }
+        [data-bs-theme="dark"] #filterDownloaded:checked + label { color: #34d399; }
+        [data-bs-theme="dark"] #filterNotDownloaded:checked + label { color: #fbbf24; }
     </style>
 
     <div class="p-4 border-bottom">
@@ -456,7 +462,7 @@
                                 {{ participant.certificate_filename[:25] + '...' if
                                 participant.certificate_filename|length
                                 > 25 else participant.certificate_filename }}
-                                <span class="badge bg-warning text-dark">Custom</span>
+                                <span class="badge bg-warning">Custom</span>
                             </small>
                             {% else %}
                             <small class="text-success">
