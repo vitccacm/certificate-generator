@@ -40,12 +40,15 @@
                     <label class="form-label">
                         <i class="bi bi-shield-check"></i> Solve to verify
                     </label>
-                    <div class="p-3 rounded mb-2 text-center"
-                        style="background: var(--glass-bg); border: 1px solid var(--glass-border);">
-                        <span class="fs-4 fw-bold text-primary">{{ captcha_question }}</span>
+                    <div class="captcha-stack">
+                        <div class="captcha-prompt">
+                            <span class="captcha-question">{{ captcha_question }}</span>
+                            <span class="captcha-equals">=</span>
+                            <span class="captcha-hint">solve to verify</span>
+                        </div>
+                        <input type="text" class="form-control form-control-lg captcha-answer" name="captcha"
+                            placeholder="Enter the answer" required autocomplete="off" inputmode="numeric" pattern="[0-9]*">
                     </div>
-                    <input type="text" class="form-control form-control-lg" name="captcha"
-                        placeholder="Enter the answer" required autocomplete="off" inputmode="numeric" pattern="[0-9]*">
                 </div>
 
                 <!-- Submit -->

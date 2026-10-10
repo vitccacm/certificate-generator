@@ -76,10 +76,10 @@
                     </label>
                     {% if participant and participant.certificate_filename %}
                     <div class="d-flex align-items-center gap-2 mb-2 p-2 rounded"
-                        style="background: var(--bs-body-bg);">
+                        style="background: var(--surface-2); border: 1px solid var(--line-strong);">
                         <i class="bi bi-image text-primary fs-4"></i>
                         <span class="small">{{ participant.certificate_filename }}</span>
-                        <span class="badge bg-warning text-dark ms-auto">Custom</span>
+                        <span class="badge bg-warning ms-auto">Custom</span>
                     </div>
                     <input type="file" class="form-control" id="certificate" name="certificate" accept=".png">
                     <div class="form-text">Leave empty to keep current certificate</div>

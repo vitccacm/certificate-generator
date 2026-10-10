@@ -128,7 +128,7 @@
             </form>
 
             <!-- Template Preview with Click-to-Position -->
-            <div class="position-relative border rounded overflow-hidden" style="background: #f0f0f0;">
+            <div class="position-relative border rounded overflow-hidden" style="background: var(--surface-2); border-color: var(--line-strong) !important;">
                 <div id="templateContainer" style="position: relative;">
                     <!-- PNG Preview as Image -->
                     <img id="templateImage" src="{{ url_for('admin.template_preview', event_id=event.id) }}"
