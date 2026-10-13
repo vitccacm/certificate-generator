@@ -32,6 +32,7 @@
         <div class="glass-card p-4">
             <form method="POST"
                 action="{{ url_for('admin.edit_event', event_id=event.id) if event else url_for('admin.new_event') }}">
+                <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
 
                 <!-- Event Name -->
                 <div class="mb-3">

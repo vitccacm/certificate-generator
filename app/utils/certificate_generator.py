@@ -214,3 +214,58 @@ def get_template_preview_image(template_path, max_width=800):
 # Backward compatibility
 def generate_certificate(*args, **kwargs):
     return generate_certificate_png(*args, **kwargs)
+
+
+def add_qr_to_certificate(cert_path, qr_url, qr_x_percent=85.0, qr_y_percent=85.0, qr_size_percent=12.0):
+    """
+    Add a QR code to an existing certificate PNG file in place.
+    
+    Args:
+        cert_path: Path to the certificate PNG file
+        qr_url: URL to encode in the QR code
+        qr_x_percent: QR center X position as percentage (0-100)
+        qr_y_percent: QR center Y position as percentage (0-100)
+        qr_size_percent: QR width as percentage of certificate width
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if not PIL_AVAILABLE:
+        return False
+
+    try:
+        qr_img = _render_qr_image(qr_url)
+        if qr_img is None:
+            return False
+
+        with Image.open(cert_path) as img:
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+
+            width, height = img.size
+            
+            # Calculate QR size and position
+            qr_px = max(1, int((qr_size_percent / 100) * width))
+            qr_img = qr_img.resize((qr_px, qr_px))
+            center_x = (qr_x_percent / 100) * width
+            center_y = (qr_y_percent / 100) * height
+            paste_x = int(center_x - qr_px / 2)
+            paste_y = int(center_y - qr_px / 2)
+
+            # Paste QR onto image
+            img.paste(qr_img, (paste_x, paste_y), qr_img)
+
+            # Convert back to RGB and save
+            if img.mode == 'RGBA':
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3])
+                img = background
+
+            img.save(cert_path, format='PNG', quality=95)
+            return True
+            
+    except Exception as e:
+        logging.error(f"Add QR to certificate error: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+        return False

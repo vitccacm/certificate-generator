@@ -35,6 +35,7 @@
 
             <form action="{{ url_for('admin.upload_template', event_id=event.id) }}" method="POST"
                 enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
                 <div class="mb-3">
                     <label for="template" class="form-label">PNG Template Image</label>
                     <input type="file" class="form-control" id="template" name="template" accept=".png" required>
@@ -53,6 +54,7 @@
                     <i class="bi bi-check-circle"></i> Template uploaded
                 </small>
                 <form action="{{ url_for('admin.delete_template', event_id=event.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger"
                         onclick="return confirm('Delete template?')">
                         <i class="bi bi-trash"></i>
@@ -78,6 +80,7 @@
 
             <!-- Position Configuration Form -->
             <form method="POST" action="{{ url_for('admin.configure_template', event_id=event.id) }}" id="positionForm">
+                <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
                 <!-- Hidden inputs for position -->
                 <input type="hidden" name="name_x" id="name_x" value="{{ event.name_position_x or 50 }}">
                 <input type="hidden" name="name_y" id="name_y" value="{{ event.name_position_y or 50 }}">
@@ -107,6 +110,18 @@
                     <input type="number" class="form-control" name="qr_size" id="qr_size" min="3" max="40" step="1"
                         value="{{ event.qr_size if event.qr_size is not none else 12 }}">
                     <div class="form-text">The QR is baked into the certificate and links to the verification page.</div>
+
+                    <!-- QR on custom certificates option -->
+                    <div class="form-check form-switch mt-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="qr_on_custom_certificates"
+                            id="qr_on_custom_certificates" {% if event.qr_on_custom_certificates %}checked{% endif %}>
+                        <label class="form-check-label" for="qr_on_custom_certificates">
+                            <i class="bi bi-image"></i> Add verification QR to custom uploaded certificates
+                        </label>
+                    </div>
+                    <div class="form-text">
+                        When enabled, the verification QR code will be added to custom uploaded PNG certificates at the same position as auto-generated certificates.
+                    </div>
                 </div>
 
                 <!-- Placing selector -->

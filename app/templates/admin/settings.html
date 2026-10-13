@@ -21,6 +21,7 @@
                 <i class="bi bi-key text-gradient"></i> Change Your Password
             </h5>
             <form method="POST" action="{{ url_for('admin.change_password') }}">
+                <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
                 <div class="mb-3">
                     <label for="current_password" class="form-label">Current Password</label>
                     <input type="password" class="form-control" id="current_password" name="current_password" required>
@@ -49,6 +50,7 @@
                 <i class="bi bi-person-plus text-gradient"></i> Create New Admin
             </h5>
             <form method="POST" action="{{ url_for('admin.new_admin') }}">
+                <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
                 <div class="mb-3">
                     <label for="username" class="form-label">Username</label>
                     <input type="text" class="form-control" id="username" name="username" required>
@@ -138,6 +140,7 @@
                                     </div>
                                     <form method="POST"
                                         action="{{ url_for('admin.delete_admin', target_admin_id=admin.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
                                         <div class="modal-body text-start">
                                             <p>Are you sure you want to delete admin <strong>{{ admin.username
                                                     }}</strong>?</p>

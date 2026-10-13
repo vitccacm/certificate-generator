@@ -40,6 +40,7 @@
 
             <form method="POST" enctype="multipart/form-data"
                 action="{{ url_for('admin.bulk_upload', event_id=event.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
                 <!-- File Upload -->
                 <div class="mb-4">
                     <label for="file" class="form-label">CSV or Excel File <span class="text-danger">*</span></label>

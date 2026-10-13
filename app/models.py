@@ -79,6 +79,9 @@ class Event(db.Model):
     qr_position_y = db.Column(db.Float, default=85.0)  # QR center Y (percentage 0-100)
     qr_size = db.Column(db.Float, default=12.0)  # QR width as percentage of certificate width
     
+    # Add QR code to custom uploaded certificates (when verify_enabled is True)
+    qr_on_custom_certificates = db.Column(db.Boolean, default=False)
+    
     # Archived event fields
     is_archived = db.Column(db.Boolean, default=False)
     show_in_archive = db.Column(db.Boolean, default=False)

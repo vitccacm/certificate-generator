@@ -4,6 +4,7 @@ All routes require admin authentication.
 """
 import os
 import json
+import secrets
 from datetime import datetime
 import pandas as pd
 from flask import (Blueprint, render_template, request, redirect, url_for,
@@ -20,6 +21,28 @@ from app.utils.mailer import (is_mail_configured, iter_certificate_emails,
                               MailConnectionError)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+
+def generate_csrf_token():
+    """Generate a CSRF token and store in session."""
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+    return session['csrf_token']
+
+
+def validate_csrf_token(token):
+    """Validate CSRF token from form/request against session."""
+    session_token = session.get('csrf_token')
+    if not session_token or not token:
+        return False
+    return secrets.compare_digest(session_token, token)
+
+
+@admin_bp.before_request
+def add_csrf_token():
+    """Add CSRF token to session for all admin routes."""
+    if session.get('admin_logged_in'):
+        generate_csrf_token()
 
 
 @admin_bp.route('/dashboard')
@@ -104,6 +127,12 @@ def change_password():
     """
     Change current admin's password.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.settings'))
+    
     admin_id = session.get('admin_id')
     admin = Admin.query.get_or_404(admin_id)
     
@@ -142,6 +171,12 @@ def new_admin():
     """
     Create a new admin account.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.settings'))
+    
     admin_id = session.get('admin_id')
     current_admin = Admin.query.get_or_404(admin_id)
     
@@ -190,6 +225,12 @@ def delete_admin(target_admin_id):
     """
     Delete an admin account (requires password verification).
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.settings'))
+    
     admin_id = session.get('admin_id')
     current_admin = Admin.query.get_or_404(admin_id)
     target_admin = Admin.query.get_or_404(target_admin_id)
@@ -378,6 +419,12 @@ def toggle_event(event_id):
     """
     Toggle event visibility.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     # Block toggling archived events
@@ -408,6 +455,12 @@ def toggle_protection(event_id):
     When enabling protection, generates an access token.
     When disabling, clears the token.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     # Block toggling archived events
@@ -445,6 +498,12 @@ def archive_event(event_id):
     """
     Archive an event. Archived events cannot be edited and downloads are disabled.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     if event.is_archived:
@@ -477,6 +536,12 @@ def unarchive_event(event_id):
     """
     Unarchive an event. Restores the ability to edit the event.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     if not event.is_archived:
@@ -505,6 +570,12 @@ def delete_event(event_id):
     """
     Delete an event and all associated participants (requires password verification).
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     admin_id = session.get('admin_id')
     admin = Admin.query.get_or_404(admin_id)
@@ -556,6 +627,12 @@ def upload_pdfs(event_id):
     """
     Upload multiple PNG certificates to the certificates folder.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     if 'pdfs' not in request.files:
@@ -628,6 +705,12 @@ def new_participant(event_id):
     mode = request.args.get('mode', 'pool')  # Default to pool mode
     
     if request.method == 'POST':
+        # Validate CSRF token
+        csrf_token = request.form.get('csrf_token')
+        if not validate_csrf_token(csrf_token):
+            flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+            return render_template('admin/participant_form.html', event=event, participant=None, mode=mode)
+        
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip().lower()
         mode = request.form.get('mode', 'pool')
@@ -679,7 +762,24 @@ def new_participant(event_id):
             certificate_filename=certificate_filename
         )
         db.session.add(participant)
+        # Flush to assign participant ID before generating QR code
+        db.session.flush()
         
+        # If QR on custom certificates is enabled and this is a custom certificate, add QR code
+        if mode == 'custom' and event.qr_on_custom_certificates and event.verify_enabled and certificate_filename:
+            from app.utils.certificate_generator import add_qr_to_certificate
+            cert_path = os.path.join(current_app.config['CERTIFICATES_FOLDER'], certificate_filename)
+            qr_url = build_qr_url(event, participant)
+            if qr_url:
+                try:
+                    add_qr_to_certificate(cert_path, qr_url, 
+                                        event.qr_position_x or 85.0,
+                                        event.qr_position_y or 85.0,
+                                        event.qr_size or 12.0)
+                    flash('QR code added to custom certificate.', 'info')
+                except Exception as e:
+                    flash(f'Warning: Could not add QR code to certificate: {str(e)}', 'warning')
+
         log_admin_action(
             admin_id=session.get('admin_id'),
             action='add_participant',
@@ -709,6 +809,12 @@ def edit_participant(participant_id):
         return redirect(url_for('admin.event_detail', event_id=event.id))
     
     if request.method == 'POST':
+        # Validate CSRF token
+        csrf_token = request.form.get('csrf_token')
+        if not validate_csrf_token(csrf_token):
+            flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+            return render_template('admin/participant_form.html', event=event, participant=participant)
+        
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip().lower()
         
@@ -749,6 +855,21 @@ def edit_participant(participant_id):
                 cert_path = os.path.join(current_app.config['CERTIFICATES_FOLDER'], filename)
                 file.save(cert_path)
                 participant.certificate_filename = filename
+                
+                # If QR on custom certificates is enabled, add QR code
+                if event.qr_on_custom_certificates and event.verify_enabled:
+                    from app.utils.certificate_generator import add_qr_to_certificate
+                    from app.routes.public import build_qr_url
+                    qr_url = build_qr_url(event, participant)
+                    if qr_url:
+                        try:
+                            add_qr_to_certificate(cert_path, qr_url, 
+                                                event.qr_position_x or 85.0,
+                                                event.qr_position_y or 85.0,
+                                                event.qr_size or 12.0)
+                            flash('QR code added to custom certificate.', 'info')
+                        except Exception as e:
+                            flash(f'Warning: Could not add QR code to certificate: {str(e)}', 'warning')
         
         participant.name = name
         participant.email = email
@@ -773,6 +894,12 @@ def delete_participant(participant_id):
     """
     Delete a participant and their certificate (if custom).
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=participant.event_id))
+    
     participant = Participant.query.get_or_404(participant_id)
     event = participant.event
     event_id = participant.event_id
@@ -811,6 +938,12 @@ def bulk_delete_participants(event_id):
     """
     Bulk delete multiple participants.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.event_detail', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     # Block bulk delete for archived events
@@ -961,6 +1094,12 @@ def bulk_upload_confirm():
     Confirm and process bulk upload.
     Re-parses the file to avoid session size limits.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.dashboard'))
+    
     event_id = session.get('bulk_upload_event_id')
     upload_path = session.get('bulk_upload_file')
     
@@ -1053,6 +1192,12 @@ def bulk_upload_cancel():
     """
     Cancel bulk upload and cleanup.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.dashboard'))
+    
     upload_path = session.get('bulk_upload_file')
     event_id = session.get('bulk_upload_event_id')
     
@@ -1084,6 +1229,12 @@ def configure_template(event_id):
     available_fonts = get_available_fonts()
     
     if request.method == 'POST':
+        # Validate CSRF token
+        csrf_token = request.form.get('csrf_token')
+        if not validate_csrf_token(csrf_token):
+            flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+            return render_template('admin/configure_template.html', event=event, fonts=available_fonts)
+        
         # Get position data from form
         try:
             x_percent = float(request.form.get('name_x', 50))
@@ -1110,6 +1261,7 @@ def configure_template(event_id):
         
         # Verification / QR settings
         verify_enabled = request.form.get('verify_enabled') == 'on'
+        qr_on_custom_certificates = request.form.get('qr_on_custom_certificates') == 'on'
         try:
             qr_x = float(request.form.get('qr_x', 85))
             qr_y = float(request.form.get('qr_y', 85))
@@ -1130,6 +1282,7 @@ def configure_template(event_id):
         event.qr_position_x = qr_x
         event.qr_position_y = qr_y
         event.qr_size = qr_size
+        event.qr_on_custom_certificates = qr_on_custom_certificates
 
         log_admin_action(
             admin_id=session.get('admin_id'),
@@ -1151,6 +1304,12 @@ def upload_template(event_id):
     """
     Upload a PNG template for an event.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.configure_template', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     if 'template' not in request.files:
@@ -1235,6 +1394,12 @@ def delete_template(event_id):
     """
     Delete the template from an event.
     """
+    # Validate CSRF token
+    csrf_token = request.form.get('csrf_token')
+    if not validate_csrf_token(csrf_token):
+        flash('Invalid CSRF token. Please refresh the page and try again.', 'error')
+        return redirect(url_for('admin.configure_template', event_id=event_id))
+    
     event = Event.query.get_or_404(event_id)
     
     if event.template_filename:
@@ -1320,6 +1485,13 @@ def send_emails_stream(event_id):
     EmailLog row is committed per result, so progress is persisted even if
     the browser disconnects mid-batch.
     """
+    # Validate CSRF token (from JSON body or header)
+    csrf_token = request.json.get('csrf_token') if request.is_json else request.form.get('csrf_token')
+    if not csrf_token:
+        csrf_token = request.headers.get('X-CSRF-Token')
+    if not validate_csrf_token(csrf_token):
+        return jsonify({'error': 'Invalid CSRF token. Please refresh the page and try again.'}), 400
+    
     event = Event.query.get_or_404(event_id)
 
     if event.is_archived:

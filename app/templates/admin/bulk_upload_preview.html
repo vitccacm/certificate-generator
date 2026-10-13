@@ -91,12 +91,14 @@
     <div class="d-flex gap-2 mt-4">
         {% if valid_count > 0 %}
         <form action="{{ url_for('admin.bulk_upload_confirm') }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
             <button type="submit" class="btn btn-gradient-success">
                 <i class="bi bi-check-circle"></i> Import {{ valid_count }} Record(s)
             </button>
         </form>
         {% endif %}
         <form action="{{ url_for('admin.bulk_upload_cancel') }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
             <button type="submit" class="btn btn-outline-secondary">
                 <i class="bi bi-x-circle"></i> Cancel
             </button>

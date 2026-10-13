@@ -40,11 +40,19 @@
             <div class="alert alert-info mb-4">
                 <i class="bi bi-image"></i>
                 Upload a <strong>custom PNG certificate</strong> for this participant.
+                {% if event.qr_on_custom_certificates and event.verify_enabled %}
+                <div class="mt-2 small">
+                    <i class="bi bi-qr-code text-info"></i> Verification QR code will be added automatically to the uploaded certificate.
+                </div>
+                {% endif %}
             </div>
             {% endif %}
 
             <form method="POST" enctype="multipart/form-data"
-                action="{{ url_for('admin.edit_participant', participant_id=participant.id) if participant else url_for('admin.new_participant', event_id=event.id) }}">
+                action="{{ url_for('admin.edit_participant', participant_id=participant.id) if participant else url_for('admin.new_participant', event_id=event.id) }}"
+                id="participantForm">
+
+                <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
 
                 <!-- Hidden mode field -->
                 {% if not participant %}
@@ -91,13 +99,39 @@
                 </div>
                 {% endif %}
 
+                <!-- Upload Progress Status (hidden initially) -->
+                <div id="uploadProgress" class="mb-4 d-none">
+                    <div class="progress mb-2" style="height: 8px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small id="progressStatus" class="text-muted">Preparing upload...</small>
+                        <small id="progressPercent" class="fw-semibold">0%</small>
+                    </div>
+                    <div id="progressSteps" class="mt-2">
+                        <div class="progress-step d-flex align-items-center gap-2 mb-1">
+                            <span id="step1Icon" class="step-icon text-muted"><i class="bi bi-circle"></i></span>
+                            <small id="step1Text" class="text-muted">Uploading image...</small>
+                        </div>
+                        <div class="progress-step d-flex align-items-center gap-2 mb-1">
+                            <span id="step2Icon" class="step-icon text-muted"><i class="bi bi-circle"></i></span>
+                            <small id="step2Text" class="text-muted">Adding QR code...</small>
+                        </div>
+                        <div class="progress-step d-flex align-items-center gap-2 mb-1">
+                            <span id="step3Icon" class="step-icon text-muted"><i class="bi bi-circle"></i></span>
+                            <small id="step3Text" class="text-muted">Saving...</small>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Buttons -->
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-gradient">
+                    <button type="submit" class="btn btn-gradient" id="submitBtn">
                         <i class="bi bi-check-lg"></i>
                         {{ 'Update' if participant else 'Add Participant' }}
                     </button>
-                    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn btn-outline-secondary" id="cancelBtn">
                         <i class="bi bi-x-lg"></i> Cancel
                     </a>
                 </div>
@@ -105,4 +139,137 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('participantForm');
+    const certificateInput = document.getElementById('certificate');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressStatus = document.getElementById('progressStatus');
+    const progressPercent = document.getElementById('progressPercent');
+    const step1Icon = document.getElementById('step1Icon');
+    const step1Text = document.getElementById('step1Text');
+    const step2Icon = document.getElementById('step2Icon');
+    const step2Text = document.getElementById('step2Text');
+    const step3Icon = document.getElementById('step3Icon');
+    const step3Text = document.getElementById('step3Text');
+
+    const qrEnabled = {{ 'true' if event.qr_on_custom_certificates and event.verify_enabled else 'false' }};
+    const isCustomMode = {{ 'true' if mode == 'custom' or (participant and participant.certificate_filename) else 'false' }};
+
+    function resetProgress() {
+        progressBar.style.width = '0%';
+        progressPercent.textContent = '0%';
+        progressStatus.textContent = 'Preparing upload...';
+        
+        // Reset step icons
+        [step1Icon, step2Icon, step3Icon].forEach(icon => {
+            icon.innerHTML = '<i class="bi bi-circle"></i>';
+            icon.className = 'step-icon text-muted';
+        });
+        [step1Text, step2Text, step3Text].forEach(text => {
+            text.className = 'text-muted';
+        });
+    }
+
+    function updateStep(step, status) {
+        // status: 'pending', 'active', 'done', 'error'
+        const icons = [step1Icon, step2Icon, step3Icon];
+        const texts = [step1Text, step2Text, step3Text];
+        
+        icons.forEach((icon, i) => {
+            texts[i].className = 'text-muted';
+            if (i + 1 < step) {
+                icon.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
+                icon.className = 'step-icon text-success';
+                texts[i].className = 'text-success';
+            } else if (i + 1 === step) {
+                if (status === 'active') {
+                    icon.innerHTML = '<i class="bi bi-arrow-right-circle-fill"></i>';
+                    icon.className = 'step-icon text-primary';
+                    texts[i].className = 'fw-semibold text-primary';
+                } else if (status === 'done') {
+                    icon.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
+                    icon.className = 'step-icon text-success';
+                    texts[i].className = 'text-success';
+                } else if (status === 'error') {
+                    icon.innerHTML = '<i class="bi bi-x-circle-fill"></i>';
+                    icon.className = 'step-icon text-danger';
+                    texts[i].className = 'text-danger';
+                }
+            } else {
+                icon.innerHTML = '<i class="bi bi-circle"></i>';
+                icon.className = 'step-icon text-muted';
+            }
+        });
+    }
+
+    function simulateProgress() {
+        // This simulates progress for visual feedback since we can't track real upload progress without XHR
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressBar.style.width = progress + '%';
+            progressPercent.textContent = Math.round(progress) + '%';
+        }, 300);
+        return interval;
+    }
+
+    if (form && certificateInput && isCustomMode) {
+        form.addEventListener('submit', function(e) {
+            const file = certificateInput.files[0];
+            if (!file) return; // Let browser handle required validation
+            
+            // Show progress UI
+            uploadProgress.classList.remove('d-none');
+            submitBtn.disabled = true;
+            cancelBtn.style.display = 'none';
+            resetProgress();
+            
+            const progressInterval = simulateProgress();
+            
+            // Step 1: Uploading
+            updateStep(1, 'active');
+            progressStatus.textContent = 'Uploading image...';
+            
+            // Since we can't track real upload progress with regular form submit,
+            // we simulate the steps. The actual upload happens during form submission.
+            setTimeout(() => {
+                updateStep(1, 'done');
+                if (qrEnabled) {
+                    updateStep(2, 'active');
+                    progressStatus.textContent = 'Adding QR code to certificate...';
+                } else {
+                    updateStep(2, 'done');
+                    updateStep(3, 'active');
+                    progressStatus.textContent = 'Saving participant...';
+                }
+            }, 800);
+            
+            setTimeout(() => {
+                if (qrEnabled) {
+                    updateStep(2, 'done');
+                    updateStep(3, 'active');
+                    progressStatus.textContent = 'Saving participant...';
+                }
+            }, 1600);
+            
+            setTimeout(() => {
+                updateStep(3, 'done');
+                progressStatus.textContent = 'Complete!';
+                progressBar.style.width = '100%';
+                progressPercent.textContent = '100%';
+                clearInterval(progressInterval);
+                // Form will submit and page will redirect
+            }, 2400);
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -199,6 +199,7 @@
         const sendUrl = "{{ url_for('admin.send_emails_stream', event_id=event.id) }}";
         const sendDelay = {{ config.get('MAIL_SEND_DELAY', 1.0) }};
         const mailConfigured = {{ 'true' if mail_configured else 'false' }};
+        const csrfToken = "{{ session.csrf_token }}";
 
         const rows = Array.from(document.querySelectorAll('.email-row'));
         const checkboxes = () => Array.from(document.querySelectorAll('.recipient-checkbox'));
@@ -337,8 +338,8 @@
             try {
                 const resp = await fetch(sendUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ participant_ids: ids })
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ participant_ids: ids, csrf_token: csrfToken })
                 });
                 if (!resp.ok || !resp.body) {
                     let err = 'Request failed (HTTP ' + resp.status + ')';
