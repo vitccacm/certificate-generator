@@ -768,6 +768,7 @@ def new_participant(event_id):
         # If QR on custom certificates is enabled and this is a custom certificate, add QR code
         if mode == 'custom' and event.qr_on_custom_certificates and event.verify_enabled and certificate_filename:
             from app.utils.certificate_generator import add_qr_to_certificate
+            from app.routes.public import build_qr_url
             cert_path = os.path.join(current_app.config['CERTIFICATES_FOLDER'], certificate_filename)
             qr_url = build_qr_url(event, participant)
             if qr_url:
